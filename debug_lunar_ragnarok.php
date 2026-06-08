@@ -1,0 +1,19 @@
+<?php
+require __DIR__.'/vendor/autoload.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
+
+use Illuminate\Support\Facades\Http;
+
+$id = "63b7280c-1429-48a9-ab3d-5970bf13cf3f";
+$url = "https://api.lunaranime.ru/api/manga/$id?language=en";
+
+echo "Testing URL: $url\n";
+$response = Http::withHeaders([
+    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Referer' => 'https://lunaranime.ru/',
+])->get($url);
+
+echo "Status: " . $response->status() . "\n";
+print_r($response->json());
