@@ -72,13 +72,7 @@
             @if(count($mangas) > 0)
                 @foreach($mangas as $manga)
                     <a href="/{{ $source ?? 'webtoon' }}/show/{{ $manga['id'] }}" class="card">
-                        @php
-                            $coverUrl = $manga['cover'] ?? null;
-                            if($coverUrl && (str_contains($coverUrl, 'comicazen.com') || str_starts_with($coverUrl, '/'))) {
-                                $coverUrl = route('proxy.image', ['url' => $coverUrl]);
-                            }
-                        @endphp
-                        <img src="{{ $coverUrl ?? 'https://via.placeholder.com/230x320?text=No+Cover' }}" alt="{{ $manga['title'] }}">
+                        <img src="@proxy($manga['cover'] ?? 'https://via.placeholder.com/230x320?text=No+Cover')" alt="{{ $manga['title'] }}">
                         <div class="card-content">
                             <h3>{{ $manga['title'] }}</h3>
                             <p style="color:#00d573; font-size:12px;">{{ isset($source) && $source == 'comicazen' ? 'Comicazen' : 'Webtoon' }} Source</p>

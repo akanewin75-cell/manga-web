@@ -1,113 +1,119 @@
 @extends('layouts.ruana')
 
-@section('title', 'Reading - Ruana Manwha')
+@section('title', $mangaTitle . ' - ' . $chapterId)
 
 @section('styles')
 <style>
-    body {
-        overflow-y: auto !important;
-    }
-    .reader-container img {
-        width: 100%;
-        max-width: 900px;
+    .reader-image {
+        max-width: 1000px;
         margin: 0 auto;
         display: block;
-        box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        width: 100%;
+        height: auto;
     }
     .reader-nav {
-        position: fixed;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 50;
+        background: rgba(13, 13, 13, 0.9);
+        backdrop-filter: blur(10px);
+    }
+    .btn-nav {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        transition: all 0.3s ease;
+    }
+    .btn-nav:hover:not(:disabled) {
+        border-color: #7b7bff;
+        color: #7b7bff;
+        background: #0d0d0d;
+    }
+    .btn-nav:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
     }
 </style>
 @endsection
 
 @section('content')
-<div class="bg-black min-h-screen pt-10 pb-40">
+<div class="min-h-screen bg-[#050505]">
     
-    <!-- Reader Header -->
-    <div class="max-w-4xl mx-auto px-6 mb-12 flex items-center justify-between">
-        <a href="{{ route('manga.show', ['type' => $type, 'id' => $mangaId]) }}" class="flex items-center gap-3 text-gray-500 hover:text-white transition-soft font-bold">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-            BACK TO STORY
-        </a>
-        <div class="text-center">
-            <span class="text-lunar-accent font-black tracking-widest text-xs uppercase block mb-1">{{ $mangaTitle }}</span>
-            <span class="text-2xl font-black font-orbitron">CHAPTER {{ $chapterId }}</span>
-        </div>
-        <div class="w-24"></div> <!-- Spacer -->
-    </div>
-
-    <!-- Images -->
-    <div class="reader-container flex flex-col">
-        @if(isset($error))
-            <div class="max-w-4xl mx-auto px-6 py-20 text-center">
-                <div class="mb-8 inline-flex items-center justify-center w-24 h-24 rounded-full bg-red-500/10 border border-red-500/20 text-red-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    <!-- Top Reader Bar -->
+    <div class="reader-nav sticky top-20 z-50 border-b border-lunar-border py-4 px-6">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <a href="/manga/{{ $type }}/{{ $mangaId }}" class="text-gray-500 hover:text-white transition-soft">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
-                </div>
-                <h2 class="text-3xl font-black font-orbitron text-white mb-4">ACCESS DENIED</h2>
-                <p class="text-gray-400 text-lg mb-8 max-w-md mx-auto">{{ $error }}</p>
-                <div class="flex flex-col gap-4">
-                    <a href="{{ route('manga.show', ['type' => $type, 'id' => $mangaId]) }}" class="bg-white/5 border border-white/10 text-white font-black py-4 px-8 rounded-2xl hover:bg-white/10 transition-soft">
-                        RETURN TO STORY
-                    </a>
+                </a>
+                <div>
+                    <h1 class="font-black font-orbitron text-sm uppercase tracking-tighter truncate max-w-[200px] md:max-w-md">
+                        {{ $mangaTitle }}
+                    </h1>
+                    <p class="text-[10px] text-lunar-accent font-bold uppercase tracking-widest">{{ $chapterId }}</p>
                 </div>
             </div>
-        @endif
 
-        @foreach($images as $image)
-            @php
-                $imgUrl = $image;
-                if((str_contains($imgUrl, 'comicazen.com') || str_contains($imgUrl, 'lunaranime.ru') || str_starts_with($imgUrl, '/')) && !str_contains($imgUrl, asset(''))) {
-                    $imgUrl = route('proxy.image', ['url' => $imgUrl]);
-                }
-            @endphp
-            <img src="{{ $imgUrl }}" class="loading-lazy" alt="Page">
-        @endforeach
+            <div class="flex items-center gap-2">
+                @if($prevChapter)
+                    <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $prevChapter['id']]) }}" 
+                        class="btn-nav px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest">
+                        PREV
+                    </a>
+                @else
+                    <button disabled class="btn-nav px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest">PREV</button>
+                @endif
+
+                <div class="bg-lunar-base border border-lunar-border px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-lunar-accent">
+                    CHAPTER LIST
+                </div>
+
+                @if($nextChapter)
+                    <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $nextChapter['id']]) }}" 
+                        class="btn-nav px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border-lunar-accent text-lunar-accent">
+                        NEXT
+                    </a>
+                @else
+                    <button disabled class="btn-nav px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest">NEXT</button>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- Reader Content -->
+    <div class="py-10">
+        @if(isset($error))
+            <div class="max-w-2xl mx-auto p-12 bg-red-500/10 border border-red-500/20 rounded-[40px] text-center">
+                <h2 class="text-2xl font-black font-orbitron text-red-500 mb-4 uppercase">TRANSMISSION ERROR</h2>
+                <p class="text-gray-400 font-medium mb-8">{{ $error }}</p>
+                <a href="/manga/{{ $type }}/{{ $mangaId }}" class="inline-block bg-red-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm">Return to Details</a>
+            </div>
+        @else
+            <div class="flex flex-col items-center">
+                @foreach($images as $image)
+                    <img src="@proxy($image)" 
+                        class="reader-image" 
+                        loading="lazy"
+                        onerror="this.onerror=null; this.src='{{ route('proxy.image', ['url' => $image]) }}'">
+                @endforeach
+            </div>
+        @endif
     </div>
 
     <!-- Bottom Nav -->
-    <div class="reader-nav flex items-center gap-4 bg-lunar-card/80 backdrop-blur-xl border border-white/10 p-2 rounded-[24px] shadow-2xl">
-        @if($prevChapter)
-            <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $prevChapter['id']]) }}" 
-               class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-lunar-accent transition-soft group">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-            </a>
-        @else
-            <div class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center opacity-20 cursor-not-allowed">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
+    <div class="py-20 border-t border-lunar-border bg-lunar-card/30 backdrop-blur-md">
+        <div class="max-w-lg mx-auto text-center px-6">
+            <h3 class="text-2xl font-black font-orbitron mb-8 uppercase italic">End of <span class="text-lunar-accent">Chapter</span></h3>
+            <div class="flex flex-col gap-4">
+                @if($nextChapter)
+                    <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $nextChapter['id']]) }}" 
+                        class="w-full bg-lunar-accent text-white py-5 rounded-3xl font-black uppercase tracking-[0.2em] shadow-2xl shadow-lunar-accent/20 hover:scale-105 transition-soft">
+                        NEXT CHAPTER
+                    </a>
+                @endif
+                <a href="/manga/{{ $type }}/{{ $mangaId }}" class="w-full bg-white/5 text-gray-400 py-5 rounded-3xl font-black uppercase tracking-[0.2em] border border-white/5 hover:bg-white/10 transition-soft">
+                    BACK TO DETAILS
+                </a>
             </div>
-        @endif
-        
-        <div class="px-6 py-2">
-            <span class="font-black font-orbitron text-sm tracking-widest uppercase">CHAPTER {{ $chapterId }}</span>
         </div>
-
-        @if($nextChapter)
-            <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $nextChapter['id']]) }}" 
-               class="w-14 h-14 rounded-2xl bg-lunar-accent flex items-center justify-center hover:opacity-90 transition-soft">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </a>
-        @else
-            <div class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center opacity-20 cursor-not-allowed">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </div>
-        @endif
     </div>
-
 </div>
 @endsection

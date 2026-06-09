@@ -53,13 +53,7 @@
     </div>
 
     <div class="banner">
-        @php
-            $coverUrl = $info['cover'];
-            if($coverUrl && (str_contains($coverUrl, 'comicazen.com') || str_starts_with($coverUrl, '/'))) {
-                $coverUrl = route('proxy.image', ['url' => $coverUrl]);
-            }
-        @endphp
-        <img src="{{ $coverUrl ?? 'https://via.placeholder.com/1200x650?text=No+Cover' }}">
+        <img src="@proxy($info['cover'] ?? 'https://via.placeholder.com/1200x650?text=No+Cover')">
         <div class="overlay">
             <div class="info-box">
                 <div class="genre">{{ $info['genre'] ?: 'General' }}</div>

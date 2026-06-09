@@ -63,6 +63,7 @@ class MangaController extends Controller
 
         $chapters = $info['chapters'] ?? [];
         
+        // Find current chapter's index
         $currentIndex = -1;
         foreach ($chapters as $index => $ch) {
             if ($ch['id'] == $chapterId) {
@@ -71,11 +72,34 @@ class MangaController extends Controller
             }
         }
 
-        // Chapters usually come newest first (Index 0 is latest)
-        // Next chapter (newer) is index - 1
-        // Previous chapter (older) is index + 1
-        $prevChapter = ($currentIndex !== -1 && $currentIndex < count($chapters) - 1) ? $chapters[$currentIndex + 1] : null;
-        $nextChapter = ($currentIndex !== -1 && $currentIndex > 0) ? $chapters[$currentIndex - 1] : null;
+        $prevChapter = null;
+        $nextChapter = null;
+
+        if ($currentIndex !== -1) {
+            // Determine order by comparing first and last chapter numbers
+            $isDescending = false;
+            if (count($chapters) > 1) {
+                $firstNum = (float) ($chapters[0]['chapter_num'] ?? 0);
+                $lastNum = (float) (end($chapters)['chapter_num'] ?? 0);
+                if ($firstNum > $lastNum) {
+                    $isDescending = true;
+                }
+            }
+
+            if ($isDescending) {
+                // Newest first (Index 0 is latest)
+                // Next chapter (newer) is index - 1
+                // Previous chapter (older) is index + 1
+                $nextChapter = ($currentIndex > 0) ? $chapters[$currentIndex - 1] : null;
+                $prevChapter = ($currentIndex < count($chapters) - 1) ? $chapters[$currentIndex + 1] : null;
+            } else {
+                // Oldest first (Index 0 is chapter 1)
+                // Next chapter (newer) is index + 1
+                // Previous chapter (older) is index - 1
+                $nextChapter = ($currentIndex < count($chapters) - 1) ? $chapters[$currentIndex + 1] : null;
+                $prevChapter = ($currentIndex > 0) ? $chapters[$currentIndex - 1] : null;
+            }
+        }
 
         // 1. Check local chapter first
         $localManga = Manga::where('source_type', $type)->where('source_id', $mangaId)->first();
@@ -165,12 +189,28 @@ class MangaController extends Controller
                 $path = public_path("mangas/{$manga->slug}");
                 if (!File::exists($path)) File::makeDirectory($path, 0777, true);
                 
-                $response = Http::get($manga->cover_url);
+                $headers = [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                ];
+
+                if (str_contains($manga->cover_url, 'comicazen')) {
+                    $headers['Referer'] = 'https://comicazen.com/';
+                } elseif (str_contains($manga->cover_url, 'mangadex')) {
+                    $headers['Referer'] = 'https://mangadex.org/';
+                }
+
+                $response = Http::withHeaders($headers)
+                    ->withOptions(['verify' => false, 'follow_redirects' => true])
+                    ->timeout(15)
+                    ->get($manga->cover_url);
+
                 if ($response->successful()) {
                     File::put("$path/cover.jpg", $response->body());
                     $manga->update(['cover_url' => asset("mangas/{$manga->slug}/cover.jpg")]);
                 }
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to localize cover for {$manga->slug}: " . $e->getMessage());
+            }
         }
     }
 

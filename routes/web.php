@@ -106,10 +106,17 @@ Route::get('/proxy-image', function(Request $request) {
     $url = $request->query('url');
     if (!$url) abort(404);
 
-    // Support for relative URLs
-    if (str_starts_with($url, '/')) {
-        $url = 'https://comicazen.com' . $url;
+    // Support for protocol-relative URLs
+    if (str_starts_with($url, '//')) {
+        $url = 'https:' . $url;
     }
+    // Support for relative URLs (defaulting to Comicaso/Comicazen source)
+    elseif (str_starts_with($url, '/')) {
+        $url = 'https://v3.comicaso.pro' . $url;
+    }
+
+    $url = trim($url);
+    \Illuminate\Support\Facades\Log::info("Proxying image: $url");
 
     try {
         $headers = [
@@ -117,34 +124,54 @@ Route::get('/proxy-image', function(Request $request) {
             'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
             'Accept-Language' => 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
             'Cache-Control' => 'no-cache',
+            'Pragma' => 'no-cache',
+            'Sec-Ch-Ua' => '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            'Sec-Ch-Ua-Mobile' => '?0',
+            'Sec-Ch-Ua-Platform' => '"Windows"',
+            'Sec-Fetch-Dest' => 'image',
+            'Sec-Fetch-Mode' => 'no-cors',
+            'Sec-Fetch-Site' => 'cross-site',
         ];
 
-        if (str_contains($url, 'comicazen')) {
-            $headers['Referer'] = 'https://comicazen.com/';
-        } elseif (str_contains($url, 'mangadex')) {
+        // Specific referers based on domain
+        if (str_contains($url, 'comicazen') || str_contains($url, 'comicaso') || str_contains($url, 'imgmanga.com') || str_contains($url, 'imgmacha.com')) {
+            $headers['Referer'] = 'https://v3.comicaso.pro/';
+        } elseif (str_contains($url, 'mangadex') || str_contains($url, 'uploads.mangadex.org')) {
             $headers['Referer'] = 'https://mangadex.org/';
         } elseif (str_contains($url, 'lunaranime')) {
             $headers['Referer'] = 'https://lunaranime.ru/';
         }
 
         $response = Http::withHeaders($headers)
-            ->withOptions(['verify' => false, 'follow_redirects' => true])
-            ->timeout(15)
+            ->withOptions([
+                'verify' => false, 
+                'follow_redirects' => true,
+                'timeout' => 20,
+                'connect_timeout' => 10,
+            ])
             ->get($url);
 
         if (!$response->successful()) {
             \Illuminate\Support\Facades\Log::warning("Proxy failed for $url: " . $response->status());
-            abort(404);
+            
+            // Try again WITHOUT referer (some sites block it if it's not exactly what they expect)
+            unset($headers['Referer']);
+            $response = Http::withHeaders($headers)->withOptions(['verify' => false, 'timeout' => 15])->get($url);
+            
+            if (!$response->successful()) {
+                return response()->redirectTo('https://via.placeholder.com/300x400?text=Proxy+Failed+' . $response->status());
+            }
         }
 
-        $contentType = $response->header('Content-Type');
+        $contentType = $response->header('Content-Type') ?: 'image/jpeg';
         
         return response($response->body())
             ->header('Content-Type', $contentType)
-            ->header('Cache-Control', 'public, max-age=86400');
+            ->header('Cache-Control', 'public, max-age=86400')
+            ->header('Access-Control-Allow-Origin', '*');
     } catch (\Exception $e) {
         \Illuminate\Support\Facades\Log::error("Proxy exception for $url: " . $e->getMessage());
-        abort(404);
+        return response()->redirectTo('https://via.placeholder.com/300x400?text=Proxy+Error');
     }
 })->name('proxy.image');
 

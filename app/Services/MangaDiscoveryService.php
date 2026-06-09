@@ -7,21 +7,43 @@ class MangaDiscoveryService
     protected $webtoonService;
     protected $comicazenService;
     protected $lunarService;
+    protected $comicasoService;
 
-    public function __construct(WebtoonService $webtoonService, ComicazenService $comicazenService, LunarAnimeService $lunarService)
+    public function __construct(WebtoonService $webtoonService, ComicazenService $comicazenService, LunarAnimeService $lunarService, ComicasoService $comicasoService)
     {
         $this->webtoonService = $webtoonService;
         $this->comicazenService = $comicazenService;
         $this->lunarService = $lunarService;
+        $this->comicasoService = $comicasoService;
     }
 
     public function search($query = null, $page = 1)
     {
+        \Illuminate\Support\Facades\Log::info("MangaDiscoveryService: Searching - Query: '$query', Page: $page");
         $results = [];
 
-        // 0. Search LunarAnime (Priority)
+        // 0. Search Comicaso (New Source)
+        try {
+            $comicasoMangas = $this->comicasoService->searchManga($query, $page);
+            \Illuminate\Support\Facades\Log::info("Comicaso: Found " . count($comicasoMangas) . " items for page $page");
+            foreach ($comicasoMangas as $manga) {
+                $results[] = [
+                    'id' => $manga['id'],
+                    'source_id' => $manga['id'],
+                    'source_type' => 'comicaso',
+                    'title' => $manga['title'],
+                    'slug' => $manga['slug'],
+                    'cover' => $manga['cover'],
+                ];
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Comicaso Search Failed: " . $e->getMessage());
+        }
+
+        // 1. Search LunarAnime
         try {
             $lunarMangas = $this->lunarService->searchManga($query, $page);
+            \Illuminate\Support\Facades\Log::info("LunarAnime: Found " . count($lunarMangas) . " items for page $page");
             foreach ($lunarMangas as $manga) {
                 $results[] = [
                     'id' => $manga['id'],
@@ -36,9 +58,10 @@ class MangaDiscoveryService
             \Illuminate\Support\Facades\Log::error("LunarAnime Search Failed: " . $e->getMessage());
         }
 
-        // 1. Search Comicazen
+        // 2. Search Comicazen
         try {
             $comicazenMangas = $this->comicazenService->searchManga($query, $page);
+            \Illuminate\Support\Facades\Log::info("Comicazen: Found " . count($comicazenMangas) . " items for page $page");
             foreach ($comicazenMangas as $manga) {
                 $results[] = [
                     'id' => $manga['id'],
@@ -53,10 +76,11 @@ class MangaDiscoveryService
             \Illuminate\Support\Facades\Log::error("Comicazen Search Failed: " . $e->getMessage());
         }
 
-        // 2. Search MangaDex (Webtoon) - Wrapped in Try-Catch to prevent timeout from killing the page
+        // 2. Search MangaDex (Webtoon)
         try {
             $webtoonData = $this->webtoonService->searchWebtoon($query, 12, ($page - 1) * 12);
             if (isset($webtoonData['data'])) {
+                \Illuminate\Support\Facades\Log::info("MangaDex: Found " . count($webtoonData['data']) . " items for page $page");
                 foreach ($webtoonData['data'] as $manga) {
                     $results[] = [
                         'id' => $manga['id'],
@@ -69,7 +93,7 @@ class MangaDiscoveryService
                 }
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning("Webtoon (MangaDex) Search Timed Out or Failed: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning("Webtoon (MangaDex) Search Failed: " . $e->getMessage());
         }
 
         return $results;
@@ -77,7 +101,24 @@ class MangaDiscoveryService
 
     public function getDetails($sourceType, $sourceId)
     {
-        if ($sourceType === 'lunar') {
+        if ($sourceType === 'comicaso') {
+            $details = $this->comicasoService->getMangaDetails($sourceId);
+            if ($details) {
+                return [
+                    'source_id' => $sourceId,
+                    'source_type' => 'comicaso',
+                    'title' => $details['title'],
+                    'description' => $details['description'],
+                    'cover' => $details['cover'],
+                    'genre' => $details['genre'],
+                    'chapters' => array_map(fn($ch) => [
+                        'id' => $ch['id'],
+                        'title' => $ch['title'],
+                        'chapter_num' => $ch['chapter_num']
+                    ], $details['chapters'])
+                ];
+            }
+        } elseif ($sourceType === 'lunar') {
             $details = $this->lunarService->getMangaDetails($sourceId);
             if ($details) {
                 return [
@@ -138,7 +179,9 @@ class MangaDiscoveryService
     public function getChapterImages($sourceType, $mangaSourceId, $chapterSourceId)
     {
         \Illuminate\Support\Facades\Log::info("DiscoveryService: Fetching images - Type: $sourceType, Manga: $mangaSourceId, Chapter: $chapterSourceId");
-        if ($sourceType === 'lunar') {
+        if ($sourceType === 'comicaso') {
+            return $this->comicasoService->getChapterImages($mangaSourceId, $chapterSourceId);
+        } elseif ($sourceType === 'lunar') {
             return $this->lunarService->getChapterImages($mangaSourceId, $chapterSourceId);
         } elseif ($sourceType === 'comicazen') {
             return $this->comicazenService->getChapterImages($mangaSourceId, $chapterSourceId);

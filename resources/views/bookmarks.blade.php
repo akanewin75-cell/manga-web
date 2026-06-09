@@ -140,7 +140,7 @@ body{
 
         <div class="card">
 
-            <img src="{{ asset('mangas/'.$manga->slug.'/'.$manga->cover) }}">
+            <img src="@proxy($manga->cover_url)">
 
             <div class="content">
 

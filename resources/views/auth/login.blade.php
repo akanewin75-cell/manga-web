@@ -17,21 +17,23 @@
         body{
             background:#050505;
             color:white;
-            overflow:hidden;
+            overflow-x:hidden;
+            min-height:100vh;
         }
 
         .bg{
-            position:absolute;
+            position:fixed;
             width:100%;
             height:100%;
             background:url('https://images6.alphacoders.com/135/1353380.png');
             background-size:cover;
             background-position:center;
             filter:brightness(20%);
+            z-index:-1;
         }
 
         .overlay{
-            position:absolute;
+            position:fixed;
             width:100%;
             height:100%;
             background:linear-gradient(
@@ -39,21 +41,43 @@
             rgba(0,0,0,0.9),
             rgba(0,0,0,0.5)
             );
+            z-index:-1;
         }
 
         .container{
             position:relative;
             z-index:2;
             width:100%;
-            height:100vh;
+            min-height:100vh;
             display:flex;
             justify-content:space-between;
             align-items:center;
-            padding:80px;
+            padding:40px;
+        }
+
+        @media (max-width: 992px) {
+            .container {
+                flex-direction: column;
+                justify-content: center;
+                gap: 40px;
+                padding: 20px;
+                padding-top: 100px;
+            }
+
+            body {
+                overflow-y: auto;
+            }
         }
 
         .left{
             width:55%;
+        }
+
+        @media (max-width: 992px) {
+            .left {
+                width: 100%;
+                text-align: center;
+            }
         }
 
         .small{
@@ -64,7 +88,7 @@
         }
 
         .title{
-            font-size:110px;
+            font-size: clamp(45px, 8vw, 110px);
             line-height:0.9;
             margin-bottom:30px;
         }
@@ -81,14 +105,33 @@
             font-size:18px;
         }
 
+        @media (max-width: 992px) {
+            .desc {
+                width: 100%;
+                font-size: 16px;
+            }
+        }
+
         .login-box{
-            width:400px;
+            width:100%;
+            max-width:400px;
             padding:40px;
             border-radius:25px;
             background:rgba(255,255,255,0.05);
             border:1px solid rgba(255,255,255,0.1);
             backdrop-filter:blur(15px);
             box-shadow:0 0 40px rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 992px) {
+            .login-box {
+                margin: 0 auto;
+                padding: 30px 20px;
+            }
+            
+            .login-box h2 {
+                font-size: 35px !important;
+            }
         }
 
         .login-box h2{
@@ -127,6 +170,12 @@
             display:flex;
             gap:15px;
             margin-top:20px;
+        }
+
+        @media (max-width: 480px) {
+            .btns {
+                flex-direction: column;
+            }
         }
 
         .btns button{
@@ -168,9 +217,17 @@
             top:30px;
             left:40px;
             z-index:10;
-            font-size:28px;
+            font-size:24px;
             font-weight:bold;
             color:#7b7bff;
+        }
+
+        @media (max-width: 480px) {
+            .top-logo {
+                left: 20px;
+                top: 20px;
+                font-size: 20px;
+            }
         }
 
     </style>
@@ -183,7 +240,7 @@
 <div class="overlay"></div>
 
 <div class="top-logo">
-    🌙 RUNA
+    🌙 RUANA
 </div>
 
 <div class="container">
@@ -191,12 +248,12 @@
     <div class="left">
 
         <p class="small">
-            WELCOME / ENTER YOUR REALM
+            WELCOME / ENJOY TO READ
         </p>
 
         <h1 class="title">
-            Runa <br>
-            <span>realm.</span>
+            Ruana <br>
+            <span>manwha.</span>
         </h1>
 
         <p class="desc">

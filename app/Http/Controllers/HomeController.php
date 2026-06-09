@@ -15,8 +15,9 @@ class HomeController extends Controller
         $this->discoveryService = $discoveryService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $page = (int) $request->query('page', 1);
         try {
             // 1. Get Trending from Database (recently added or most likes)
             $trending = Manga::orderBy('likes_count', 'desc')->take(5)->get();
@@ -37,16 +38,29 @@ class HomeController extends Controller
         }
 
         // 2. Get Discoveries (latest from Comicazen/MangaDex)
-        $discoveries = $this->discoveryService->search(null, 1);
+        $results = $this->discoveryService->search(null, $page);
 
-        return view('home', compact('trending', 'discoveries'));
+        // If it's the home page root '/', we use compact names as before
+        if ($request->path() === '/') {
+            $discoveries = array_slice($results, 0, 12);
+            return view('home', compact('trending', 'discoveries'));
+        }
+
+        return view('explore', [
+            'results' => $results,
+            'trending' => $trending,
+            'page' => $page,
+            'query' => null
+        ]);
     }
 
     public function search(Request $request)
     {
         $query = $request->query('q');
-        $results = $this->discoveryService->search($query);
+        $page = (int) $request->query('page', 1);
+        $trending = Manga::orderBy('likes_count', 'desc')->take(5)->get();
+        $results = $this->discoveryService->search($query, $page);
 
-        return view('explore', compact('results', 'query'));
+        return view('explore', compact('results', 'query', 'page', 'trending'));
     }
 }

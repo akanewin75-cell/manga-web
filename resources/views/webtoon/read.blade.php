@@ -26,13 +26,7 @@
 
     <div class="reader">
         @forelse($images as $image)
-            @php
-                $imgUrl = $image;
-                if(isset($source) && $source == 'comicazen') {
-                    $imgUrl = route('proxy.image', ['url' => $image]);
-                }
-            @endphp
-            <img src="{{ $imgUrl }}" alt="page">
+            <img src="@proxy($image)" alt="page">
         @empty
             <div class="empty">Failed to load images.</div>
         @endforelse

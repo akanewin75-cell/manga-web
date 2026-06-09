@@ -78,6 +78,9 @@
         }
     </style>
     
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
     @yield('styles')
 </head>
 <body class="overflow-x-hidden">
@@ -98,8 +101,8 @@
             <div class="hidden md:flex items-center gap-8 font-medium text-gray-400">
                 <a href="/" class="hover:text-white transition-soft">Home</a>
                 <a href="/explore" class="hover:text-white transition-soft">Explore</a>
+                <a href="/manga/comicaso/solo-leveling" class="hover:text-white transition-soft">Comicaso</a>
                 <a href="/webtoon" class="hover:text-white transition-soft">Webtoons</a>
-                <a href="/comicazen" class="hover:text-white transition-soft">Comicazen</a>
             </div>
 
             <div class="flex items-center gap-5">
@@ -115,9 +118,13 @@
 
                 @auth
                     <div class="flex items-center gap-3">
-                        <a href="/dashboard" class="flex items-center gap-3 bg-lunar-card border border-lunar-border p-1 pr-4 rounded-full hover:border-lunar-accent transition-soft">
-                            <div class="w-8 h-8 rounded-full bg-lunar-accent flex items-center justify-center font-bold">
-                                {{ substr(auth()->user()->name, 0, 1) }}
+                        <a href="/profile" class="flex items-center gap-3 bg-lunar-card border border-lunar-border p-1 pr-4 rounded-full hover:border-lunar-accent transition-soft">
+                            <div class="w-8 h-8 rounded-full bg-lunar-accent flex items-center justify-center font-bold overflow-hidden">
+                                @if(auth()->user()->profile_photo)
+                                    <img src="{{ asset(auth()->user()->profile_photo) }}" class="w-full h-full object-cover">
+                                @else
+                                    {{ substr(auth()->user()->name, 0, 1) }}
+                                @endif
                             </div>
                             <span class="text-sm font-medium hidden sm:inline">{{ explode(' ', auth()->user()->name)[0] }}</span>
                         </a>
