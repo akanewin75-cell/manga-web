@@ -20,7 +20,8 @@ Route::get('/buat-admin', function () {
         ['email' => 'akanewin75@gmail.com'], 
         [
             'name' => 'akane', 
-            'password' => Hash::make('akane.123') 
+            'password' => Hash::make('akane.123'),
+            'role' => 'admin'
         ]
     );
 
