@@ -37,7 +37,7 @@ class AuthenticatedSessionController extends Controller
 
         \Illuminate\Support\Facades\Log::info('Login successful for email: ' . $request->email);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('profile.edit', absolute: false));
     }
 
     /**

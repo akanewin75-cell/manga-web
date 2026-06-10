@@ -65,16 +65,42 @@
     
     <!-- Hero Section (Carousel) -->
     @php
-        $carouselItems = $trending->count() > 0 ? $trending : collect($discoveries)->take(5);
+        // Create a unique collection for carousel
+        $carouselItems = collect();
+        
+        // 1. Add Bookmarks first
+        if(auth()->check() && isset($bookmarks)) {
+            $carouselItems = $carouselItems->concat($bookmarks);
+        }
+        
+        // 2. Add Trending
+        if(isset($trending)) {
+            $carouselItems = $carouselItems->concat($trending);
+        }
+        
+        // 3. Unique filter and take 6
+        $carouselItems = $carouselItems->unique(function ($item) {
+            return ($item instanceof \App\Models\Manga) ? 'db_'.$item->id : 'ext_'.($item['source_id'] ?? $item['title']);
+        })->take(6);
+
+        // 4. Fallback to discoveries if carousel is still too small or empty
+        if ($carouselItems->count() < 3 && isset($discoveries)) {
+            $carouselItems = $carouselItems->concat(collect($discoveries)->take(6))
+                ->unique(function ($item) {
+                    return ($item instanceof \App\Models\Manga) ? 'db_'.$item->id : 'ext_'.($item['source_id'] ?? $item['title']);
+                })->take(6);
+        }
     @endphp
 
     <div class="mb-12 relative" x-data="{ 
         activeSlide: 0, 
         slides: {{ count($carouselItems) }},
         init() {
-            setInterval(() => {
-                this.activeSlide = (this.activeSlide + 1) % this.slides;
-            }, 5000);
+            if(this.slides > 1) {
+                setInterval(() => {
+                    this.activeSlide = (this.activeSlide + 1) % this.slides;
+                }, 5000);
+            }
         }
     }">
         <div class="hero-slide border border-lunar-border shadow-2xl relative overflow-hidden">
@@ -86,6 +112,14 @@
                     $cDesc = $isModel ? $item->description : 'New release available in the multiverse.';
                     $cType = $isModel ? $item->source_type : ($item['source_type'] ?? 'local');
                     $cId = $isModel ? $item->source_id : ($item['source_id'] ?? '');
+                    
+                    // Check if this specific item is in bookmarks
+                    $isBookmarked = false;
+                    if(auth()->check() && isset($bookmarks)) {
+                        $isBookmarked = $bookmarks->contains(function($b) use ($cType, $cId) {
+                            return $b->source_type == $cType && $b->source_id == $cId;
+                        });
+                    }
                 @endphp
                 
                 <div x-show="activeSlide === {{ $index }}" 
@@ -100,7 +134,11 @@
                     <img src="@proxy($cCover)" class="absolute inset-0 w-full h-full object-cover opacity-40">
                     <div class="hero-overlay absolute inset-0 flex flex-col justify-center px-8 md:px-20">
                         <div class="flex items-center gap-3 mb-4 md:mb-6">
-                            <span class="bg-lunar-accent text-white text-[8px] md:text-[10px] font-black px-2 md:px-3 py-1 rounded-md uppercase tracking-[0.2em]">Latest Update</span>
+                            @if($isBookmarked)
+                                <span class="bg-lunar-neon text-black text-[8px] md:text-[10px] font-black px-2 md:px-3 py-1 rounded-md uppercase tracking-[0.2em] shadow-lg shadow-lunar-neon/20">Bookmarked</span>
+                            @else
+                                <span class="bg-lunar-accent text-white text-[8px] md:text-[10px] font-black px-2 md:px-3 py-1 rounded-md uppercase tracking-[0.2em]">Latest Update</span>
+                            @endif
                             <span class="text-lunar-accent font-bold text-[10px] md:text-sm tracking-widest uppercase hidden md:inline">★ Featured Discovery</span>
                         </div>
                         <h1 class="text-3xl md:text-7xl font-black font-orbitron mb-4 md:mb-6 leading-tight max-w-3xl text-glow-purple italic uppercase line-clamp-2">
@@ -140,6 +178,50 @@
             </div>
         @endif
     </div>
+
+    <!-- Bookmarks Section -->
+    @if(auth()->check() && $bookmarks->count() > 0)
+    <div class="mb-16">
+        <div class="flex items-end justify-between mb-8 md:mb-12">
+            <div>
+                <h2 class="text-2xl md:text-4xl font-black font-orbitron uppercase tracking-tighter italic">Your <span class="text-lunar-accent">Bookmarks</span></h2>
+                <p class="text-[10px] md:text-base text-gray-500 mt-1 md:mt-2 font-medium">Quick access to your saved realms.</p>
+            </div>
+            <a href="/bookmarks" class="group flex items-center gap-2 md:gap-3 bg-lunar-card border border-lunar-border px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl hover:border-lunar-accent transition-soft">
+                <span class="text-[8px] md:text-sm font-black uppercase tracking-widest text-gray-400 group-hover:text-white transition-soft">View All</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5 text-lunar-accent group-hover:translate-x-1 transition-soft" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+            </a>
+        </div>
+
+        <div class="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-8">
+            @foreach($bookmarks as $manga)
+                <div class="manga-card group">
+                    <a href="/manga/{{ $manga->source_type }}/{{ $manga->source_id }}" class="block">
+                        <div class="relative aspect-[3/4.5] rounded-2xl md:rounded-3xl overflow-hidden mb-2 md:mb-5 border border-lunar-border shadow-xl group-hover:border-lunar-accent/50 group-hover:shadow-lunar-accent/10 transition-soft">
+                            <img src="@proxy($manga->cover_url ?? 'https://via.placeholder.com/300x400?text=No+Cover')" 
+                                class="card-img w-full h-full object-cover transition-soft duration-500"
+                                loading="lazy"
+                                onerror="this.onerror=null; this.src='https://via.placeholder.com/300x400?text={{ urlencode($manga->title) }}';">
+                            
+                            <div class="absolute top-2 left-2 md:top-3 md:left-3">
+                                <span class="bg-black/60 backdrop-blur-md text-white text-[7px] md:text-[8px] font-black px-1.5 py-0.5 md:px-2 md:py-1 rounded md:rounded-md border border-white/10 uppercase tracking-widest">
+                                    {{ $manga->source_type }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <h3 class="font-black text-gray-200 group-hover:text-lunar-accent transition-soft line-clamp-2 leading-tight uppercase text-[10px] md:text-sm mb-1">
+                            {{ $manga->title }}
+                        </h3>
+                        <p class="text-[8px] md:text-[10px] text-gray-500 uppercase tracking-widest font-bold">In Library</p>
+                    </a>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
     <!-- Discovery Grid -->
     <div class="mb-16">

@@ -101,8 +101,7 @@
             <div class="hidden md:flex items-center gap-8 font-medium text-gray-400">
                 <a href="/" class="hover:text-white transition-soft">Home</a>
                 <a href="/explore" class="hover:text-white transition-soft">Explore</a>
-                <a href="/manga/comicaso/solo-leveling" class="hover:text-white transition-soft">Comicaso</a>
-                <a href="/webtoon" class="hover:text-white transition-soft">Webtoons</a>
+                <a href="/bookmarks" class="hover:text-white transition-soft">Bookmark</a>
             </div>
 
             <div class="flex items-center gap-5">

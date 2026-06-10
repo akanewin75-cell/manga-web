@@ -147,6 +147,11 @@ class MangaController extends Controller
             ]);
         }
 
+        // NEW: Increment reader progress
+        if (auth()->check()) {
+            auth()->user()->increment('chapters_read');
+        }
+
         return view('read', [
             'images' => $images,
             'type' => $type,
@@ -178,6 +183,14 @@ class MangaController extends Controller
 
         // Optional: Localize cover
         $this->localizeCover($manga);
+
+        // NEW: Create bookmark for user
+        if (auth()->check()) {
+            \App\Models\Bookmark::firstOrCreate([
+                'user_id' => auth()->id(),
+                'manga_id' => $manga->id
+            ]);
+        }
 
         return back()->with('success', "'{$manga->title}' berhasil ditambahkan ke database! 😎");
     }

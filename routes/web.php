@@ -4,8 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MangaController;
 use App\Http\Controllers\ProfileController;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Hash;
 
 /*
 |--------------------------------------------------------------------------
@@ -13,17 +15,25 @@ use Illuminate\Support\Facades\Http;
 |--------------------------------------------------------------------------
 */
 
+Route::get('/buat-admin', function () {
+    User::updateOrCreate(
+        ['email' => 'akanewin75@gmail.com'], 
+        [
+            'name' => 'akane', 
+            'password' => Hash::make('akane.123') 
+        ]
+    );
+
+    return 'Admin berhasil dibuat';
+});
+
+Route::get('/bookmarks', function () {
+    $bookmarks = auth()->user()->bookmarks()->with('manga')->get();
+    return view('bookmarks', compact('bookmarks'));
+})->middleware('auth');
+
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// TEMPORARY: Auto-migrate if tables are missing
-Route::get('/init-db', function() {
-    try {
-        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-        return "Database initialized successfully! <a href='/'>Go to Home</a>";
-    } catch (\Exception $e) {
-        return "Migration failed: " . $e->getMessage();
-    }
-});
 Route::get('/explore', [HomeController::class, 'index'])->name('explore'); // Shared for now
 Route::get('/search', [HomeController::class, 'search'])->name('search');
 

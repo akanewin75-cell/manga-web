@@ -21,6 +21,11 @@ class HomeController extends Controller
         try {
             // 1. Get Trending from Database (recently added or most likes)
             $trending = Manga::orderBy('likes_count', 'desc')->take(5)->get();
+            
+            // 2. Get Bookmarks if user is logged in
+            $bookmarks = auth()->check() 
+                ? auth()->user()->bookmarkedMangas()->latest()->take(6)->get() 
+                : collect();
         } catch (\Illuminate\Database\QueryException $e) {
             // If table doesn't exist, show a friendly init page instead of crashing
             if (str_contains($e->getMessage(), 'no such table')) {
@@ -37,18 +42,19 @@ class HomeController extends Controller
             throw $e;
         }
 
-        // 2. Get Discoveries (latest from Comicazen/MangaDex)
+        // 3. Get Discoveries (latest from Comicazen/MangaDex)
         $results = $this->discoveryService->search(null, $page);
 
         // If it's the home page root '/', we use compact names as before
         if ($request->path() === '/') {
             $discoveries = array_slice($results, 0, 12);
-            return view('home', compact('trending', 'discoveries'));
+            return view('home', compact('trending', 'discoveries', 'bookmarks'));
         }
 
         return view('explore', [
             'results' => $results,
             'trending' => $trending,
+            'bookmarks' => $bookmarks,
             'page' => $page,
             'query' => null
         ]);

@@ -24,8 +24,17 @@
                         @endif
                     </div>
                 </div>
+                @php
+                    $level = floor($user->chapters_read / 10) + 1;
+                    $progress = ($user->chapters_read % 10) * 10;
+                @endphp
                 <h2 class="text-2xl font-black font-orbitron mb-2 uppercase">{{ $user->name }}</h2>
-                <p class="text-lunar-accent font-bold tracking-widest text-xs uppercase mb-8">Level 1 Reader</p>
+                <p class="text-lunar-accent font-bold tracking-widest text-xs uppercase mb-2">Level {{ $level }} Reader</p>
+                
+                <!-- Progress Bar -->
+                <div class="w-full bg-lunar-base/50 h-2 rounded-full mb-8 overflow-hidden border border-lunar-border">
+                    <div class="bg-lunar-accent h-full shadow-[0_0_10px_rgba(123,123,255,0.5)] transition-all duration-1000" style="width: {{ $progress }}%"></div>
+                </div>
                 
                 <div class="flex flex-col gap-4">
                     <div class="bg-lunar-base/50 p-4 rounded-2xl border border-lunar-border text-left">
@@ -35,6 +44,10 @@
                     <div class="bg-lunar-base/50 p-4 rounded-2xl border border-lunar-border text-left">
                         <span class="text-[10px] text-gray-600 font-bold uppercase tracking-widest block mb-1">Account Role</span>
                         <span class="text-lunar-neon text-sm font-black uppercase">{{ $user->role ?? 'User' }}</span>
+                    </div>
+                    <div class="bg-lunar-base/50 p-4 rounded-2xl border border-lunar-border text-left">
+                        <span class="text-[10px] text-gray-600 font-bold uppercase tracking-widest block mb-1">Transmission Data</span>
+                        <span class="text-white text-sm font-black uppercase">{{ $user->chapters_read }} Chapters Read</span>
                     </div>
                 </div>
             </div>
