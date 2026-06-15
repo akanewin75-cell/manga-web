@@ -205,11 +205,13 @@
                                 loading="lazy"
                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/300x400?text={{ urlencode($manga->title) }}';">
                             
+                            @if($manga->source_type != 'comicaso')
                             <div class="absolute top-2 left-2 md:top-3 md:left-3">
                                 <span class="bg-black/60 backdrop-blur-md text-white text-[7px] md:text-[8px] font-black px-1.5 py-0.5 md:px-2 md:py-1 rounded md:rounded-md border border-white/10 uppercase tracking-widest">
                                     {{ $manga->source_type }}
                                 </span>
                             </div>
+                            @endif
                         </div>
                         
                         <h3 class="font-black text-gray-200 group-hover:text-lunar-accent transition-soft line-clamp-2 leading-tight uppercase text-[10px] md:text-sm mb-1">
@@ -249,11 +251,13 @@
                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/300x400?text={{ urlencode($manga['title']) }}';">
                             
                             <!-- Source Badge (Always visible) -->
+                            @if($manga['source_type'] != 'comicaso')
                             <div class="absolute top-2 left-2 md:top-3 md:left-3">
                                 <span class="bg-black/60 backdrop-blur-md text-white text-[7px] md:text-[8px] font-black px-1.5 py-0.5 md:px-2 md:py-1 rounded md:rounded-md border border-white/10 uppercase tracking-widest">
                                     {{ $manga['source_type'] }}
                                 </span>
                             </div>
+                            @endif
                         </div>
                         
                         <h3 class="font-black text-gray-200 group-hover:text-lunar-accent transition-soft line-clamp-2 leading-tight uppercase text-[10px] md:text-sm mb-1">

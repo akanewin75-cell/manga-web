@@ -51,7 +51,28 @@ class MangaController extends Controller
         $localChapters = $localManga ? $localManga->chapters()->pluck('chapter_num')->toArray() : [];
         $chapters = $info->chapters ?? [];
 
-        return view('manga', compact('info', 'localManga', 'localChapters', 'chapters'));
+        // NEW: 18+ Access Control
+        $nsfwEnabled = session('nsfw_enabled', false);
+        $genre = strtolower($info->genre ?? '');
+        $isRestricted = str_contains($genre, '18+') || 
+                        str_contains($genre, 'mature') || 
+                        str_contains($genre, 'adult') || 
+                        str_contains($genre, 'smut') || 
+                        str_contains($genre, 'ecchi');
+
+        if ($isRestricted && !$nsfwEnabled) {
+            return redirect('/')->with('error', 'Transmission blocked: Restricted content sector. Enable 18+ in profile to access.');
+        }
+
+        // Fetch actual comments for this manga
+        $comments = \App\Models\Comment::with('user')
+            ->where('source_type', $type)
+            ->where('source_id', $id)
+            ->whereNull('chapter_id')
+            ->latest()
+            ->get();
+
+        return view('manga', compact('info', 'localManga', 'localChapters', 'chapters', 'comments'));
     }
 
     public function read($type, $mangaId, $chapterId)
@@ -152,6 +173,14 @@ class MangaController extends Controller
             auth()->user()->increment('chapters_read');
         }
 
+        // Fetch actual comments for this chapter
+        $comments = \App\Models\Comment::with('user')
+            ->where('source_type', $type)
+            ->where('source_id', $mangaId)
+            ->where('chapter_id', $chapterId)
+            ->latest()
+            ->get();
+
         return view('read', [
             'images' => $images,
             'type' => $type,
@@ -159,7 +188,8 @@ class MangaController extends Controller
             'chapterId' => $chapterId,
             'nextChapter' => $nextChapter,
             'prevChapter' => $prevChapter,
-            'mangaTitle' => $info['title'] ?? 'Unknown Manga'
+            'mangaTitle' => $info['title'] ?? 'Unknown Manga',
+            'comments' => $comments
         ]);
     }
 

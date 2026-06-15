@@ -4,29 +4,15 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MangaController;
 use App\Http\Controllers\ProfileController;
-use App\Models\User;
+use App\Http\Controllers\CommentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Hash;
 
 /*
 |--------------------------------------------------------------------------
 | RUANA MANWHA ROUTES
 |--------------------------------------------------------------------------
 */
-
-Route::get('/buat-admin', function () {
-    User::updateOrCreate(
-        ['email' => 'akanewin75@gmail.com'], 
-        [
-            'name' => 'akane', 
-            'password' => Hash::make('akane.123'),
-            'role' => 'admin'
-        ]
-    );
-
-    return 'Admin berhasil dibuat';
-});
 
 Route::get('/bookmarks', function () {
     $bookmarks = auth()->user()->bookmarks()->with('manga')->get();
@@ -37,6 +23,7 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('/explore', [HomeController::class, 'index'])->name('explore'); // Shared for now
 Route::get('/search', [HomeController::class, 'search'])->name('search');
+Route::post('/toggle-nsfw', [HomeController::class, 'toggleNsfw'])->name('toggle.nsfw');
 
 // Unified Manga Routes
 Route::get('/manga/{type}/{id}', [MangaController::class, 'show'])->name('manga.show');
@@ -110,6 +97,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::post('/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::patch('/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
 });
 
 // Image Proxy (To prevent Hotlinking/CORS issues)

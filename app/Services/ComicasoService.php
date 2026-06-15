@@ -66,7 +66,9 @@ class ComicasoService
                     'slug' => $item['slug'],
                     'cover' => $item['thumbnail'],
                     'source_type' => 'comicaso',
-                    'original_source' => $item['source'] ?? 'unknown'
+                    'original_source' => $item['source'] ?? 'unknown',
+                    'genre' => $item['genre'] ?? '',
+                    'status' => $item['status'] ?? ''
                 ];
             }
 

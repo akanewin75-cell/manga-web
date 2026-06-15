@@ -45,9 +45,63 @@
                         <span class="text-[10px] text-gray-600 font-bold uppercase tracking-widest block mb-1">Account Role</span>
                         <span class="text-lunar-neon text-sm font-black uppercase">{{ $user->role ?? 'User' }}</span>
                     </div>
+                    @php
+                        $readerTitle = 'Citizen';
+                        if ($user->role === 'admin') {
+                            $readerTitle = 'Grand Duke';
+                        } elseif ($level >= 180) {
+                            $readerTitle = 'Grand Duke';
+                        } elseif ($level >= 150) {
+                            $readerTitle = 'Archduke';
+                        } elseif ($level >= 120) {
+                            $readerTitle = 'Duke';
+                        } elseif ($level >= 90) {
+                            $readerTitle = 'Viscount';
+                        } elseif ($level >= 60) {
+                            $readerTitle = 'Marques';
+                        } elseif ($level >= 30) {
+                            $readerTitle = 'Baron';
+                        }
+                    @endphp
+                    <div class="bg-lunar-base/50 p-4 rounded-2xl border border-lunar-border text-left">
+                        <span class="text-[10px] text-gray-600 font-bold uppercase tracking-widest block mb-1">Reader Title</span>
+                        <span class="text-white text-sm font-black uppercase italic tracking-tighter">{{ $readerTitle }}</span>
+                    </div>
                     <div class="bg-lunar-base/50 p-4 rounded-2xl border border-lunar-border text-left">
                         <span class="text-[10px] text-gray-600 font-bold uppercase tracking-widest block mb-1">Transmission Data</span>
                         <span class="text-white text-sm font-black uppercase">{{ $user->chapters_read }} Chapters Read</span>
+                    </div>
+
+                    <!-- 18+ Toggle -->
+                    <div class="bg-lunar-base/50 p-4 rounded-2xl border border-lunar-border text-left"
+                        x-data="{ 
+                            nsfw: {{ session('nsfw_enabled', false) ? 'true' : 'false' }},
+                            toggle() {
+                                fetch('{{ route('toggle.nsfw') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({ enabled: !this.nsfw })
+                                })
+                                .then(res => res.json())
+                                .then(data => {
+                                    this.nsfw = data.nsfw_enabled;
+                                });
+                            }
+                        }">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-gray-600 font-bold uppercase tracking-widest block">Restricted Content (18+)</span>
+                            <button @click="toggle()" 
+                                class="relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                                :class="nsfw ? 'bg-red-600' : 'bg-lunar-border'">
+                                <span class="sr-only">Toggle 18+ Content</span>
+                                <span aria-hidden="true" 
+                                    class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                                    :class="nsfw ? 'translate-x-5' : 'translate-x-0'"></span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -30,6 +30,7 @@ class MangaDiscoveryService
                     'title' => $manga['title'],
                     'slug' => $manga['slug'],
                     'cover' => $manga['cover'],
+                    'genre' => $manga['genre'] ?? '',
                 ];
             }
         } catch (\Exception $e) {
@@ -48,10 +49,37 @@ class MangaDiscoveryService
                     'title' => $manga['title'],
                     'slug' => $manga['slug'],
                     'cover' => $manga['cover'],
+                    'genre' => $manga['genre'] ?? '',
                 ];
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Comicazen Search Failed: " . $e->getMessage());
+        }
+
+        // Apply NSFW Filtering
+        $nsfwEnabled = session('nsfw_enabled', false);
+        if (!$nsfwEnabled) {
+            $results = array_filter($results, function ($manga) {
+                $genre = strtolower($manga['genre'] ?? '');
+                $title = strtolower($manga['title'] ?? '');
+                $slug = strtolower($manga['slug'] ?? '');
+                
+                // Block list keywords
+                $badWords = ['18+', 'mature', 'adult', 'smut', 'ecchi', 'hentai', 'yaoi', 'yuri'];
+                
+                // Check genre
+                foreach ($badWords as $word) {
+                    if (str_contains($genre, $word)) return false;
+                }
+                
+                // Fallback: Check title and slug if genre is likely missing
+                foreach ($badWords as $word) {
+                    if (str_contains($title, $word) || str_contains($slug, $word)) return false;
+                }
+                
+                return true;
+            });
+            $results = array_values($results);
         }
 
         return $results;

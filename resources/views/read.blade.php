@@ -183,6 +183,109 @@
                     </div>
                 </template>
             </div>
+
+            <!-- Comments Section (Chapter End) -->
+            <div class="max-w-4xl mx-auto px-6 mt-10 mb-32" @click.stop>
+                <div class="flex items-center gap-4 mb-8">
+                    <h2 class="text-2xl font-black font-orbitron uppercase italic">Chapter <span class="text-lunar-accent">Intel</span></h2>
+                </div>
+
+                <div class="bg-lunar-card/30 border border-lunar-border rounded-[32px] p-8 md:p-10">
+                    @auth
+                        <form action="{{ route('comments.store') }}" method="POST" class="flex gap-5 mb-10 text-left">
+                            @csrf
+                            <input type="hidden" name="source_type" value="{{ $type }}">
+                            <input type="hidden" name="source_id" value="{{ $mangaId }}">
+                            <input type="hidden" name="chapter_id" value="{{ $chapterId }}">
+
+                            <div class="w-12 h-12 rounded-xl bg-lunar-accent flex-shrink-0 flex items-center justify-center font-bold overflow-hidden shadow-lg shadow-lunar-accent/20">
+                                @if(auth()->user()->profile_photo)
+                                    <img src="{{ asset(auth()->user()->profile_photo) }}" class="w-full h-full object-cover">
+                                @else
+                                    {{ substr(auth()->user()->name, 0, 1) }}
+                                @endif
+                            </div>
+                            <div class="flex-grow">
+                                <textarea name="content" required placeholder="Leave a transmission for this chapter..." 
+                                    class="w-full bg-lunar-base border border-lunar-border rounded-2xl p-4 focus:border-lunar-accent outline-none transition-soft text-sm font-medium min-h-[80px] resize-none"></textarea>
+                                <div class="flex justify-end mt-3">
+                                    <button type="submit" class="bg-lunar-accent text-white px-8 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-lunar-accent/20 hover:scale-105 transition-soft">
+                                        Send Transmission
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    @endauth
+
+                    <div class="space-y-8 text-left">
+                        @forelse($comments as $comment)
+                            <div class="flex gap-4" x-data="{ editing: false }">
+                                <div class="w-10 h-10 rounded-lg bg-lunar-accent/10 border border-lunar-accent/20 flex-shrink-0 flex items-center justify-center text-lunar-accent font-black text-xs overflow-hidden">
+                                    @if($comment->user->profile_photo)
+                                        <img src="{{ asset($comment->user->profile_photo) }}" class="w-full h-full object-cover">
+                                    @else
+                                        {{ substr($comment->user->name, 0, 1) }}
+                                    @endif
+                                </div>
+                                <div class="flex-grow">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-black text-gray-300 uppercase text-[10px] tracking-wider">{{ $comment->user->name }}</span>
+                                            <span class="text-[8px] text-gray-600 font-bold uppercase">{{ $comment->created_at->diffForHumans() }}</span>
+                                        </div>
+
+                                        @auth
+                                            @if($comment->user_id === auth()->id())
+                                                <div class="flex items-center gap-2">
+                                                    <button @click="editing = !editing" 
+                                                        class="p-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-600 hover:text-lunar-accent hover:border-lunar-accent/50 transition-soft"
+                                                        title="Edit Transmission">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
+                                                    <form action="{{ route('comments.destroy', $comment) }}" method="POST" onsubmit="return confirm('Delete this transmission?')">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" 
+                                                            class="p-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-600 hover:text-red-500 hover:border-red-500/50 transition-soft"
+                                                            title="Delete Intel">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endif
+                                        @endauth
+                                    </div>
+
+                                    <div x-show="!editing">
+                                        <p class="text-gray-500 text-xs leading-relaxed">{{ $comment->content }}</p>
+                                    </div>
+
+                                    <div x-show="editing" x-cloak class="mt-2">
+                                        <form action="{{ route('comments.update', $comment) }}" method="POST">
+                                            @csrf
+                                            @method('PATCH')
+                                            <textarea name="content" required class="w-full bg-lunar-base border border-lunar-border rounded-xl p-3 focus:border-lunar-accent outline-none transition-soft text-xs font-medium min-h-[60px] resize-none mb-2 text-gray-300">{{ $comment->content }}</textarea>
+                                            <div class="flex justify-end">
+                                                <button type="submit" class="bg-lunar-accent text-white px-5 py-1.5 rounded-lg font-black uppercase tracking-widest text-[8px] shadow-lg shadow-lunar-accent/20 hover:scale-105 transition-soft">
+                                                    Update Intel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="py-6 text-center">
+                                <p class="text-gray-700 font-bold uppercase tracking-widest text-[10px] italic">No intel reported for this chapter yet.</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
         @endif
     </div>
 

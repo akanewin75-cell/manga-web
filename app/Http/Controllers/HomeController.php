@@ -15,17 +15,53 @@ class HomeController extends Controller
         $this->discoveryService = $discoveryService;
     }
 
+    public function toggleNsfw(Request $request)
+    {
+        // Handle both boolean true and string "true"
+        $enabled = filter_var($request->input('enabled'), FILTER_VALIDATE_BOOLEAN);
+        session(['nsfw_enabled' => $enabled]);
+        return response()->json(['status' => 'success', 'nsfw_enabled' => $enabled]);
+    }
+
     public function index(Request $request)
     {
         $page = (int) $request->query('page', 1);
+        $nsfwEnabled = session('nsfw_enabled', false);
+
         try {
             // 1. Get Trending from Database (recently added or most likes)
-            $trending = Manga::orderBy('likes_count', 'desc')->take(5)->get();
+            $trendingQuery = Manga::orderBy('likes_count', 'desc');
+            
+            if (!$nsfwEnabled) {
+                $trendingQuery->where(function($q) {
+                    $q->where('genre', 'NOT LIKE', '%18+%')
+                      ->where('genre', 'NOT LIKE', '%Mature%')
+                      ->where('genre', 'NOT LIKE', '%Adult%')
+                      ->where('genre', 'NOT LIKE', '%Smut%')
+                      ->where('genre', 'NOT LIKE', '%Ecchi%')
+                      ->orWhereNull('genre');
+                });
+            }
+            
+            $trending = $trendingQuery->take(5)->get();
             
             // 2. Get Bookmarks if user is logged in
-            $bookmarks = auth()->check() 
-                ? auth()->user()->bookmarkedMangas()->latest()->take(6)->get() 
-                : collect();
+            $bookmarksQuery = auth()->check() 
+                ? auth()->user()->bookmarkedMangas()->latest()
+                : null;
+
+            if ($bookmarksQuery && !$nsfwEnabled) {
+                $bookmarksQuery->where(function($q) {
+                    $q->where('genre', 'NOT LIKE', '%18+%')
+                      ->where('genre', 'NOT LIKE', '%Mature%')
+                      ->where('genre', 'NOT LIKE', '%Adult%')
+                      ->where('genre', 'NOT LIKE', '%Smut%')
+                      ->where('genre', 'NOT LIKE', '%Ecchi%')
+                      ->orWhereNull('genre');
+                });
+            }
+
+            $bookmarks = $bookmarksQuery ? $bookmarksQuery->take(6)->get() : collect();
         } catch (\Illuminate\Database\QueryException $e) {
             // If table doesn't exist, show a friendly init page instead of crashing
             if (str_contains($e->getMessage(), 'no such table')) {
@@ -64,7 +100,21 @@ class HomeController extends Controller
     {
         $query = $request->query('q');
         $page = (int) $request->query('page', 1);
-        $trending = Manga::orderBy('likes_count', 'desc')->take(5)->get();
+        $nsfwEnabled = session('nsfw_enabled', false);
+
+        $trendingQuery = Manga::orderBy('likes_count', 'desc');
+        if (!$nsfwEnabled) {
+            $trendingQuery->where(function($q) {
+                $q->where('genre', 'NOT LIKE', '%18+%')
+                  ->where('genre', 'NOT LIKE', '%Mature%')
+                  ->where('genre', 'NOT LIKE', '%Adult%')
+                  ->where('genre', 'NOT LIKE', '%Smut%')
+                  ->where('genre', 'NOT LIKE', '%Ecchi%')
+                  ->orWhereNull('genre');
+            });
+        }
+        $trending = $trendingQuery->take(5)->get();
+
         $results = $this->discoveryService->search($query, $page);
 
         return view('explore', compact('results', 'query', 'page', 'trending'));

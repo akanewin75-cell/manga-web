@@ -118,6 +118,7 @@ class ComicazenService
                                                 'title' => trim($item['title'] ?? $item['name'] ?? $slug),
                                                 'slug' => $slug,
                                                 'cover' => $item['thumbnail'] ?? $item['cover'] ?? $item['image'] ?? $item['img'] ?? $item['thumb'] ?? null,
+                                                'genre' => is_array($item['genres'] ?? null) ? implode(', ', $item['genres']) : ($item['genres'] ?? $item['category'] ?? ''),
                                             ];
                                         }
                                     }
@@ -148,11 +149,18 @@ class ComicazenService
                     if (!$slug || in_array($slug, ['komik', 'manga', 'category', 'genre', 'page']) || strlen($slug) < 2) continue;
 
                     if (!isset($mangas[$slug])) {
+                        $genreNodes = $xpath->query(".//div[contains(@class, 'genres-content')]//a | .//div[contains(@class, 'mg-category')]//a | .//span[contains(@class, 'genre')]//a", $node);
+                        $genres = [];
+                        foreach ($genreNodes as $gNode) {
+                            $genres[] = trim($gNode->nodeValue);
+                        }
+
                         $mangas[$slug] = [
                             'id' => $slug,
                             'title' => trim($titleNode->nodeValue),
                             'slug' => $slug,
                             'cover' => $imgNode ? ($imgNode->getAttribute('data-src') ?: ($imgNode->getAttribute('data-lazy-src') ?: ($imgNode->getAttribute('src') ?: $imgNode->getAttribute('data-cfsrc')))) : null,
+                            'genre' => implode(', ', $genres),
                         ];
                     }
                 }
