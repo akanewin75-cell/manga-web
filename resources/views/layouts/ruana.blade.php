@@ -76,6 +76,27 @@
         .transition-soft {
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .liquid-glass-success {
+            box-shadow: 0 8px 32px 0 rgba(0, 213, 115, 0.15), inset 0 0 20px rgba(0, 213, 115, 0.05);
+            border-color: rgba(0, 213, 115, 0.2);
+        }
+
+        .liquid-glass-error {
+            box-shadow: 0 8px 32px 0 rgba(239, 68, 68, 0.15), inset 0 0 20px rgba(239, 68, 68, 0.05);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .liquid-glass-info {
+            box-shadow: 0 8px 32px 0 rgba(123, 123, 255, 0.15), inset 0 0 20px rgba(123, 123, 255, 0.05);
+            border-color: rgba(123, 123, 255, 0.2);
+        }
     </style>
     
     <!-- Alpine.js -->
@@ -83,7 +104,74 @@
     
     @yield('styles')
 </head>
-<body class="overflow-x-hidden">
+<body class="overflow-x-hidden" x-data="{ 
+    notifications: [],
+    addNotification(message, type = 'info') {
+        const id = Date.now();
+        this.notifications.push({ id, message, type });
+        setTimeout(() => {
+            this.notifications = this.notifications.filter(n => n.id !== id);
+        }, 5000);
+    },
+    init() {
+        window.addNotification = (message, type = 'info') => this.addNotification(message, type);
+        @if(session('success'))
+            this.addNotification('{{ session('success') }}', 'success');
+        @endif
+        @if(session('error'))
+            this.addNotification('{{ session('error') }}', 'error');
+        @endif
+        @if(session('status'))
+            this.addNotification('{{ session('status') }}', 'success');
+        @endif
+    }
+}">
+
+    <!-- Notifications -->
+    <div class="fixed bottom-10 right-10 z-[1000] flex flex-col gap-4">
+        <template x-for="n in notifications" :key="n.id">
+            <div x-transition:enter="transition ease-out duration-500"
+                 x-transition:enter-start="translate-y-10 opacity-0 scale-90"
+                 x-transition:enter-end="translate-y-0 opacity-100 scale-100"
+                 x-transition:leave="transition ease-in duration-300"
+                 x-transition:leave-start="translate-x-0 opacity-100"
+                 x-transition:leave-end="translate-x-full opacity-0"
+                 class="px-8 py-5 rounded-[2rem] flex items-center gap-5 liquid-glass relative overflow-hidden group"
+                 :class="{
+                    'liquid-glass-success': n.type === 'success',
+                    'liquid-glass-error': n.type === 'error',
+                    'liquid-glass-info': n.type === 'info'
+                 }">
+                <!-- Reflection Highlight -->
+                <div class="absolute -top-1/2 -left-1/2 w-full h-full bg-white/5 rotate-45 pointer-events-none"></div>
+
+                <div class="relative">
+                    <div class="w-3 h-3 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.5)]" :class="{
+                        'bg-green-500 shadow-green-500/50': n.type === 'success',
+                        'bg-red-500 shadow-red-500/50': n.type === 'error',
+                        'bg-lunar-accent shadow-lunar-accent/50': n.type === 'info'
+                    }"></div>
+                    <div class="absolute inset-0 w-3 h-3 rounded-full animate-ping opacity-50" :class="{
+                        'bg-green-500': n.type === 'success',
+                        'bg-red-500': n.type === 'error',
+                        'bg-lunar-accent': n.type === 'info'
+                    }"></div>
+                </div>
+
+                <span class="text-[10px] font-black uppercase tracking-[0.2em] relative z-10" :class="{
+                    'text-green-400': n.type === 'success',
+                    'text-red-400': n.type === 'error',
+                    'text-lunar-accent': n.type === 'info'
+                }" x-text="n.message"></span>
+
+                <button @click="notifications = notifications.filter(notif => notif.id !== n.id)" class="ml-4 opacity-30 hover:opacity-100 transition-soft relative z-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </template>
+    </div>
 
     <!-- Navbar -->
     <nav class="fixed top-0 left-0 w-full z-[100] glass">

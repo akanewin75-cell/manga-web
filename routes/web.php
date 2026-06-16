@@ -7,8 +7,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CommentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
 /*
 |--------------------------------------------------------------------------
@@ -90,7 +88,6 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::post('/import/{type}/{id}', [MangaController::class, 'import'])->name('manga.import');
-    Route::delete('/admin/delete-manga/{slug}', [MangaController::class, 'delete']);
     
     Route::get('/dashboard', function () {
         return view('dashboard');
@@ -178,18 +175,5 @@ Route::get('/proxy-image', function(Request $request) {
         return response()->redirectTo('https://via.placeholder.com/300x400?text=Proxy+Error');
     }
 })->name('proxy.image');
-
-Route::get('/buat-admin', function () {
-
-    User::updateOrCreate(
-        ['email' => 'admin@ruana.my.id'],
-        [
-            'name' => 'Admin',
-            'password' => Hash::make('admin12345')
-        ]
-    );
-
-    return 'Admin berhasil dibuat';
-});
 
 require __DIR__.'/auth.php';

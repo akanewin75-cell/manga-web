@@ -63,9 +63,26 @@
                                     LOGIN TO TRACK
                                 </a>
                             @endauth
-                            <button class="w-full bg-white/5 text-gray-400 py-4 rounded-2xl font-black uppercase tracking-widest text-sm border border-white/5 hover:bg-white/10 transition-soft">
-                                SHARE STORY
-                            </button>
+                            @auth
+                                @php
+                                    $continueChapterId = $lastReadChapterId;
+                                    if (!$continueChapterId && count($chapters) > 0) {
+                                        // If no read history, start from the first chapter (last in array usually for comicaso)
+                                        $continueChapterId = end($chapters)['id']; 
+                                    }
+                                @endphp
+
+                                @if($continueChapterId)
+                                    <a href="{{ route('manga.read', ['type' => $info->source_type, 'mangaId' => $info->source_id, 'chapterId' => $continueChapterId]) }}" 
+                                        class="w-full bg-white/5 text-gray-200 py-4 rounded-2xl font-black uppercase tracking-widest text-sm border border-white/5 hover:bg-white/10 transition-soft flex items-center justify-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-lunar-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        {{ $lastReadChapterId ? 'CONTINUE READING' : 'START READING' }}
+                                    </a>
+                                @endif
+                            @endauth
                         </div>
                     </div>
                 </div>
@@ -120,20 +137,31 @@
 
                         <div class="grid grid-cols-1 gap-4 chapter-list pr-4">
                             @foreach($chapters as $ch)
+                                @php
+                                    $isRead = in_array($ch['id'], $readChapterIds);
+                                @endphp
                                 <a href="{{ route('manga.read', ['type' => $info->source_type, 'mangaId' => $info->source_id, 'chapterId' => $ch['id']]) }}" 
                                     x-show="'{{ strtolower(addslashes($ch['title'])) }}'.includes(search.toLowerCase())"
                                     x-transition:enter="transition ease-out duration-300"
                                     x-transition:enter-start="opacity-0 transform -translate-y-2"
                                     x-transition:enter-end="opacity-100 transform translate-y-0"
-                                    class="chapter-item flex items-center justify-between p-6 rounded-3xl group">
+                                    class="chapter-item flex items-center justify-between p-6 rounded-3xl group {{ $isRead ? 'opacity-60 hover:opacity-100' : '' }}">
                                     <div class="flex items-center gap-6">
-                                        <div class="w-12 h-12 rounded-2xl bg-lunar-base flex items-center justify-center font-black text-lunar-accent border border-lunar-border group-hover:bg-lunar-accent group-hover:text-white transition-soft">
-                                            {{ $ch['chapter_num'] }}
+                                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center font-black border border-lunar-border transition-soft {{ $isRead ? 'bg-lunar-neon text-black' : 'bg-lunar-base text-lunar-accent group-hover:bg-lunar-accent group-hover:text-white' }}">
+                                            @if($isRead)
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            @else
+                                                {{ $ch['chapter_num'] }}
+                                            @endif
                                         </div>
                                         <div>
                                             <h4 class="font-black text-gray-200 group-hover:text-white transition-soft uppercase tracking-tight">{{ $ch['title'] }}</h4>
-                                            @if($info->source_type != 'comicaso')
-                                            <p class="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1 font-bold group-hover:text-lunar-accent">Transmitted via {{ $info->source_type }}</p>
+                                            @if($isRead)
+                                                <p class="text-[9px] text-lunar-neon uppercase tracking-[0.2em] mt-1 font-black">Memory Sync Complete</p>
+                                            @elseif($info->source_type != 'comicaso')
+                                                <p class="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1 font-bold group-hover:text-lunar-accent">Transmitted via {{ $info->source_type }}</p>
                                             @endif
                                         </div>
                                     </div>

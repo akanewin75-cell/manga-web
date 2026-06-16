@@ -49,4 +49,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Manga::class, 'likes');
     }
+
+    public function chapterReads()
+    {
+        return $this->hasMany(UserChapterRead::class);
+    }
 }

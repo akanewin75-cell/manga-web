@@ -51,6 +51,25 @@ class MangaController extends Controller
         $localChapters = $localManga ? $localManga->chapters()->pluck('chapter_num')->toArray() : [];
         $chapters = $info->chapters ?? [];
 
+        // Fetch read chapters for the user
+        $readChapterIds = [];
+        $lastReadChapterId = null;
+        try {
+            if (auth()->check()) {
+                $reads = auth()->user()->chapterReads()
+                    ->where('source_type', $type)
+                    ->where('source_id', $id)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                
+                $readChapterIds = $reads->pluck('chapter_id')->toArray();
+                $lastReadChapterId = $reads->first()?->chapter_id;
+            }
+        } catch (\Exception $e) {
+            // Table might not exist yet, fallback to empty array
+            \Illuminate\Support\Facades\Log::warning("Chapter reads table missing or error: " . $e->getMessage());
+        }
+
         // NEW: 18+ Access Control
         $nsfwEnabled = session('nsfw_enabled', false);
         $genre = strtolower($info->genre ?? '');
@@ -72,7 +91,7 @@ class MangaController extends Controller
             ->latest()
             ->get();
 
-        return view('manga', compact('info', 'localManga', 'localChapters', 'chapters', 'comments'));
+        return view('manga', compact('info', 'localManga', 'localChapters', 'chapters', 'comments', 'readChapterIds', 'lastReadChapterId'));
     }
 
     public function read($type, $mangaId, $chapterId)
@@ -168,9 +187,24 @@ class MangaController extends Controller
             ]);
         }
 
-        // NEW: Increment reader progress
+        // NEW: Increment reader progress and record read chapter
         if (auth()->check()) {
-            auth()->user()->increment('chapters_read');
+            try {
+                $user = auth()->user();
+                
+                // Record specific chapter read
+                \App\Models\UserChapterRead::updateOrCreate([
+                    'user_id' => $user->id,
+                    'source_type' => $type,
+                    'source_id' => $mangaId,
+                    'chapter_id' => $chapterId
+                ]);
+
+                // Increment total counter
+                $user->increment('chapters_read');
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Could not record chapter read: " . $e->getMessage());
+            }
         }
 
         // Fetch actual comments for this chapter
