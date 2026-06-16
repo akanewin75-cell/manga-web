@@ -55,19 +55,6 @@
                 </div>
             </div>
 
-            <!-- Migration Tool (Admin Only) -->
-            @if(auth()->user()->role === 'admin')
-                <div class="bg-lunar-neon/10 border border-lunar-neon/20 p-10 rounded-[40px] mb-12">
-                    <h3 class="text-2xl font-black font-orbitron text-lunar-neon mb-4 uppercase">System Rebirth Panel</h3>
-                    <p class="text-gray-400 mb-8 leading-relaxed">
-                        You have successfully deployed the new Ruana Architecture. Please initialize the database migration to transfer all existing manga realms from the old file system to the new SQLite core.
-                    </p>
-                    <a href="/admin/migrate-data" class="inline-block bg-lunar-neon text-lunar-base font-black px-10 py-4 rounded-2xl hover:opacity-90 transition-soft">
-                        START DATA MIGRATION
-                    </a>
-                </div>
-            @endif
-
             <!-- Placeholder for Bookmarks -->
             <div class="bg-lunar-card/50 border border-lunar-border border-dashed p-20 rounded-[40px] text-center">
                 <div class="text-5xl mb-6">🔭</div>

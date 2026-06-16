@@ -47,7 +47,7 @@
                     </div>
                     @php
                         $readerTitle = 'Citizen';
-                        if ($user->role === 'admin') {
+                        if ($user->isAdmin()) {
                             $readerTitle = 'Grand Duke';
                         } elseif ($level >= 180) {
                             $readerTitle = 'Grand Duke';
@@ -75,7 +75,7 @@
                     <!-- 18+ Toggle -->
                     <div class="bg-lunar-base/50 p-4 rounded-2xl border border-lunar-border text-left cursor-pointer group hover:border-lunar-accent/50 transition-soft"
                         x-data="{ 
-                            nsfw: {{ session('nsfw_enabled', false) ? 'true' : 'false' }},
+                            nsfw: {{ (auth()->user()->nsfw_enabled ?? session('nsfw_enabled', false)) ? 'true' : 'false' }},
                             async toggle() {
                                 // Toggle immediately for responsiveness
                                 this.nsfw = !this.nsfw;

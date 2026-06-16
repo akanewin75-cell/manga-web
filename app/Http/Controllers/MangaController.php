@@ -71,7 +71,7 @@ class MangaController extends Controller
         }
 
         // NEW: 18+ Access Control
-        $nsfwEnabled = session('nsfw_enabled', false);
+        $nsfwEnabled = auth()->check() ? auth()->user()->nsfw_enabled : session('nsfw_enabled', false);
         $genre = strtolower($info->genre ?? '');
         $isRestricted = str_contains($genre, '18+') || 
                         str_contains($genre, 'mature') || 
@@ -304,5 +304,40 @@ class MangaController extends Controller
         $manga->delete();
 
         return redirect('/')->with('success', 'Manga berhasil dihapus dari database');
+    }
+
+    public function proxy(Request $request)
+    {
+        $url = $request->query('url');
+        if (!$url) return abort(404);
+
+        $headers = [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        ];
+
+        if (str_contains($url, 'comicazen')) {
+            $headers['Referer'] = 'https://comicazen.com/';
+        } elseif (str_contains($url, 'mangadex')) {
+            $headers['Referer'] = 'https://mangadex.org/';
+        } elseif (str_contains($url, 'comicaso')) {
+            $headers['Referer'] = 'https://comicaso.com/';
+        }
+
+        try {
+            $response = Http::withHeaders($headers)
+                ->withOptions(['verify' => false, 'follow_redirects' => true])
+                ->timeout(15)
+                ->get($url);
+
+            if ($response->successful()) {
+                return response($response->body())
+                    ->header('Content-Type', $response->header('Content-Type'))
+                    ->header('Cache-Control', 'public, max-age=86400');
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Proxy failed for $url: " . $e->getMessage());
+        }
+
+        return abort(404);
     }
 }

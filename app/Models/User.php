@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'profile_photo'])]
+#[Fillable(['name', 'email', 'password', 'role', 'profile_photo', 'nsfw_enabled'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -53,5 +53,10 @@ class User extends Authenticatable
     public function chapterReads()
     {
         return $this->hasMany(UserChapterRead::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
     }
 }

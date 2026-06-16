@@ -57,7 +57,7 @@ class MangaDiscoveryService
         }
 
         // Apply NSFW Filtering
-        $nsfwEnabled = session('nsfw_enabled', false);
+        $nsfwEnabled = auth()->check() ? auth()->user()->nsfw_enabled : session('nsfw_enabled', false);
         if (!$nsfwEnabled) {
             $results = array_filter($results, function ($manga) {
                 $genre = strtolower($manga['genre'] ?? '');

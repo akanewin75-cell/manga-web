@@ -40,8 +40,9 @@
         atBottom: false,
         nextUrl: '{{ $nextChapter ? route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $nextChapter['id']]) : '' }}',
         isRedirecting: false,
+        canTrigger: false,
         triggerRedirect() {
-            if (this.isRedirecting || !this.autoNext || !this.nextUrl) return;
+            if (this.isRedirecting || !this.autoNext || !this.nextUrl || !this.canTrigger) return;
             
             this.isRedirecting = true;
             setTimeout(() => {
@@ -55,6 +56,9 @@
      }" 
      @click="showUI = !showUI"
      x-init="
+        // Enable auto-trigger only after a short delay to prevent scroll-preservation loops
+        setTimeout(() => { canTrigger = true }, 2000);
+
         $watch('showUI', value => {
             const nav = document.querySelector('nav.fixed');
             if (nav) {
