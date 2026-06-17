@@ -81,7 +81,7 @@
                                 this.nsfw = !this.nsfw;
                                 
                                 try {
-                                    const response = await fetch('{{ route('toggle.nsfw') }}', {
+                                    const response = await fetch(window.location.origin + '/toggle-nsfw', {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',

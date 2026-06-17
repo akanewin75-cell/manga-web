@@ -270,15 +270,20 @@ class MangaController extends Controller
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                 ];
 
-                if (str_contains($manga->cover_url, 'comicazen')) {
-                    $headers['Referer'] = 'https://comicazen.com/';
-                } elseif (str_contains($manga->cover_url, 'mangadex')) {
-                    $headers['Referer'] = 'https://mangadex.org/';
+                $host = parse_url($manga->cover_url, PHP_URL_HOST);
+                if ($host) {
+                    if (str_contains($host, 'comicazen')) {
+                        $headers['Referer'] = 'https://comicazen.com/';
+                    } elseif (str_contains($host, 'mangadex')) {
+                        $headers['Referer'] = 'https://mangadex.org/';
+                    } elseif (str_contains($host, 'comicaso') || str_contains($host, 'imgmanga')) {
+                        $headers['Referer'] = 'https://v3.comicaso.pro/';
+                    }
                 }
 
                 $response = Http::withHeaders($headers)
                     ->withOptions(['verify' => false, 'follow_redirects' => true])
-                    ->timeout(15)
+                    ->timeout(20)
                     ->get($manga->cover_url);
 
                 if ($response->successful()) {
@@ -311,28 +316,68 @@ class MangaController extends Controller
         $url = $request->query('url');
         if (!$url) return abort(404);
 
+        // Fix relative URLs if any
+        if (str_starts_with($url, '/')) {
+            $url = 'https://v3.comicaso.pro' . $url;
+        }
+
+        \Illuminate\Support\Facades\Log::info("Proxying URL: $url");
+
         $headers = [
             'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept-Language' => 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Cache-Control' => 'no-cache',
+            'Pragma' => 'no-cache',
         ];
 
-        if (str_contains($url, 'comicazen')) {
-            $headers['Referer'] = 'https://comicazen.com/';
-        } elseif (str_contains($url, 'mangadex')) {
-            $headers['Referer'] = 'https://mangadex.org/';
-        } elseif (str_contains($url, 'comicaso')) {
-            $headers['Referer'] = 'https://comicaso.com/';
+        $host = parse_url($url, PHP_URL_HOST);
+        if ($host) {
+            if (str_contains($host, 'comicazen')) {
+                $headers['Referer'] = 'https://comicazen.com/';
+            } elseif (str_contains($host, 'mangadex')) {
+                $headers['Referer'] = 'https://mangadex.org/';
+            } elseif (str_contains($host, 'comicaso') || str_contains($host, 'imgmanga') || str_contains($host, 'sektekomik')) {
+                $headers['Referer'] = 'https://v3.comicaso.pro/';
+                $headers['Origin'] = 'https://v3.comicaso.pro';
+            } elseif (str_contains($host, 'medusa')) {
+                $headers['Referer'] = 'https://medusascans.pro/';
+            } else {
+                $headers['Referer'] = 'https://' . $host . '/';
+            }
         }
 
         try {
             $response = Http::withHeaders($headers)
-                ->withOptions(['verify' => false, 'follow_redirects' => true])
-                ->timeout(15)
+                ->withOptions([
+                    'verify' => false, 
+                    'follow_redirects' => true,
+                    'curl' => [
+                        CURLOPT_ENCODING => '', // Handle all encodings
+                    ]
+                ])
+                ->timeout(30)
                 ->get($url);
 
             if ($response->successful()) {
+                $contentType = $response->header('Content-Type');
+                if (!$contentType || str_contains($contentType, 'text/html')) {
+                    // Fallback to image detection by extension if content type is missing or wrong
+                    $ext = pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION);
+                    $contentType = match(strtolower($ext)) {
+                        'jpg', 'jpeg' => 'image/jpeg',
+                        'png' => 'image/png',
+                        'webp' => 'image/webp',
+                        'gif' => 'image/gif',
+                        default => 'image/jpeg'
+                    };
+                }
+
                 return response($response->body())
-                    ->header('Content-Type', $response->header('Content-Type'))
+                    ->header('Content-Type', $contentType)
                     ->header('Cache-Control', 'public, max-age=86400');
+            } else {
+                \Illuminate\Support\Facades\Log::warning("Proxy returned status " . $response->status() . " for $url");
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Proxy failed for $url: " . $e->getMessage());

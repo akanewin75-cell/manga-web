@@ -21,7 +21,8 @@ class MangaDiscoveryService
         // 1. Search Comicaso
         try {
             $comicasoMangas = $this->comicasoService->searchManga($query, $page);
-            \Illuminate\Support\Facades\Log::info("Comicaso: Found " . count($comicasoMangas) . " items for page $page");
+            $found = count($comicasoMangas);
+            \Illuminate\Support\Facades\Log::info("Comicaso: Found $found items for page $page");
             foreach ($comicasoMangas as $manga) {
                 $results[] = [
                     'id' => $manga['id'],
@@ -40,7 +41,8 @@ class MangaDiscoveryService
         // 2. Search Comicazen
         try {
             $comicazenMangas = $this->comicazenService->searchManga($query, $page);
-            \Illuminate\Support\Facades\Log::info("Comicazen: Found " . count($comicazenMangas) . " items for page $page");
+            $found = count($comicazenMangas);
+            \Illuminate\Support\Facades\Log::info("Comicazen: Found $found items for page $page");
             foreach ($comicazenMangas as $manga) {
                 $results[] = [
                     'id' => $manga['id'],
@@ -58,6 +60,7 @@ class MangaDiscoveryService
 
         // Apply NSFW Filtering
         $nsfwEnabled = auth()->check() ? auth()->user()->nsfw_enabled : session('nsfw_enabled', false);
+        $beforeCount = count($results);
         if (!$nsfwEnabled) {
             $results = array_filter($results, function ($manga) {
                 $genre = strtolower($manga['genre'] ?? '');
@@ -80,6 +83,10 @@ class MangaDiscoveryService
                 return true;
             });
             $results = array_values($results);
+        }
+        $afterCount = count($results);
+        if ($beforeCount > 0 && $afterCount === 0 && !$nsfwEnabled) {
+            \Illuminate\Support\Facades\Log::info("NSFW Filter: All $beforeCount results were filtered out. Consider enabling NSFW in profile.");
         }
 
         return $results;

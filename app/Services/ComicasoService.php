@@ -45,7 +45,7 @@ class ComicasoService
             Log::info("Comicaso Request: " . "{$this->baseUrl}/api/home.php?" . http_build_query($params));
             
             $response = Http::withHeaders($this->getHeaders())
-                ->timeout(15)
+                ->timeout(30)
                 ->get("{$this->baseUrl}/api/home.php", $params);
 
             if (!$response->successful()) {
@@ -60,11 +60,16 @@ class ComicasoService
 
             $mangas = [];
             foreach ($json['data'] as $item) {
+                $cover = $item['thumbnail'];
+                if ($cover && !str_starts_with($cover, 'http')) {
+                    $cover = $this->baseUrl . (str_starts_with($cover, '/') ? '' : '/') . $cover;
+                }
+                
                 $mangas[] = [
                     'id' => $item['slug'],
                     'title' => $item['title'],
                     'slug' => $item['slug'],
-                    'cover' => $item['thumbnail'],
+                    'cover' => $cover,
                     'source_type' => 'comicaso',
                     'original_source' => $item['source'] ?? 'unknown',
                     'genre' => $item['genre'] ?? '',
@@ -88,7 +93,7 @@ class ComicasoService
             $source = 'comicazen'; // Defaulting to comicazen as it's the most common on the site
             
             $response = Http::withHeaders($this->getHeaders())
-                ->timeout(15)
+                ->timeout(30)
                 ->get("{$this->baseUrl}/api/manga.php", [
                     'source' => $source,
                     'slug' => $slug
@@ -97,7 +102,7 @@ class ComicasoService
             if (!$response->successful()) {
                 // Try 'medusa' if comicazen fails
                 $response = Http::withHeaders($this->getHeaders())
-                    ->timeout(15)
+                    ->timeout(30)
                     ->get("{$this->baseUrl}/api/manga.php", [
                         'source' => 'medusa',
                         'slug' => $slug
@@ -116,11 +121,16 @@ class ComicasoService
 
             $data = $json['data'];
             
+            $cover = $data['thumbnail'];
+            if ($cover && !str_starts_with($cover, 'http')) {
+                $cover = $this->baseUrl . (str_starts_with($cover, '/') ? '' : '/') . $cover;
+            }
+            
             return [
                 'id' => $data['slug'],
                 'title' => $data['title'],
                 'description' => $data['synopsis'] ?? '',
-                'cover' => $data['thumbnail'],
+                'cover' => $cover,
                 'genre' => is_array($data['genres'] ?? null) ? implode(', ', $data['genres']) : ($data['genres'] ?? ''),
                 'slug' => $data['slug'],
                 'chapters' => array_map(function($ch) {
@@ -143,7 +153,7 @@ class ComicasoService
             $source = 'comicazen'; // Default
             
             $response = Http::withHeaders($this->getHeaders())
-                ->timeout(15)
+                ->timeout(30)
                 ->get("{$this->baseUrl}/api/chapter.php", [
                     'source' => $source,
                     'manga' => $mangaSlug,
@@ -153,7 +163,7 @@ class ComicasoService
             if (!$response->successful()) {
                 // Try 'medusa'
                 $response = Http::withHeaders($this->getHeaders())
-                    ->timeout(15)
+                    ->timeout(30)
                     ->get("{$this->baseUrl}/api/chapter.php", [
                         'source' => 'medusa',
                         'manga' => $mangaSlug,
@@ -171,7 +181,13 @@ class ComicasoService
                 return [];
             }
 
-            return $json['data']['images'];
+            $images = $json['data']['images'];
+            return array_map(function($img) {
+                if ($img && !str_starts_with($img, 'http')) {
+                    return $this->baseUrl . (str_starts_with($img, '/') ? '' : '/') . $img;
+                }
+                return $img;
+            }, $images);
         } catch (\Exception $e) {
             Log::error("Comicaso Chapter Exception: " . $e->getMessage());
             return [];
