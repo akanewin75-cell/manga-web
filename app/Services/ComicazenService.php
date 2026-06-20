@@ -51,11 +51,11 @@ class ComicazenService
         foreach ($searchPaths as $path) {
             if ($query) {
                 $url = $page > 1 
-                    ? "{$this->baseUrl}/page/{$page}/?s=" . urlencode($query) . "&post_type=wp-manga"
+                    ? "{$this->baseUrl}/page/{$page}/?s=" . urlencode($query) . "&post_type=wp-manga&m_paged={$page}&paged={$page}"
                     : "{$this->baseUrl}/?s=" . urlencode($query) . "&post_type=wp-manga";
             } else {
                 $url = $page > 1 
-                    ? "{$this->baseUrl}" . rtrim($path, '/') . "/page/{$page}/?m_paged={$page}" 
+                    ? "{$this->baseUrl}" . rtrim($path, '/') . "/page/{$page}/?m_paged={$page}&paged={$page}&page={$page}" 
                     : "{$this->baseUrl}" . $path;
             }
             

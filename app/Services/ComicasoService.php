@@ -34,9 +34,10 @@ class ComicasoService
     {
         $params = [
             'page' => $page,
-            'paged' => $page, // Some APIs use paged instead of page
+            'paged' => $page,
+            'offset' => ($page - 1) * 20, // Some APIs use offset
             'source' => 'all',
-            'mode' => $query ? 'search' : 'latest', // 'latest' is often more reliable for pagination than 'update'
+            'mode' => $query ? 'search' : 'latest',
             'q' => $query ?: '',
         ];
 
@@ -87,10 +88,16 @@ class ComicasoService
     public function getMangaDetails($slug)
     {
         try {
-            // Note: We don't know the 'source' yet, so we might need to find it or try defaults
-            // But based on app-pages.js, it uses source and slug.
-            // If we don't have source, we might need a search or try 'comicazen' as default
             $source = 'comicazen'; // Defaulting to comicazen as it's the most common on the site
+            $explicitSource = false;
+            if (str_contains($slug, '__')) {
+                $parts = explode('__', $slug, 2);
+                $source = $parts[0];
+                $slug = $parts[1];
+                $explicitSource = true;
+            }
+            
+            Log::info("Comicaso Detail Fetching: source=$source, slug=$slug");
             
             $response = Http::withHeaders($this->getHeaders())
                 ->timeout(30)
@@ -99,7 +106,7 @@ class ComicasoService
                     'slug' => $slug
                 ]);
 
-            if (!$response->successful()) {
+            if (!$response->successful() && !$explicitSource) {
                 // Try 'medusa' if comicazen fails
                 $response = Http::withHeaders($this->getHeaders())
                     ->timeout(30)
@@ -107,6 +114,19 @@ class ComicasoService
                         'source' => 'medusa',
                         'slug' => $slug
                     ]);
+            }
+
+            if (!$response->successful() && $explicitSource) {
+                $fallbackSources = array_filter(['comicazen', 'medusa'], fn($s) => $s !== $source);
+                foreach ($fallbackSources as $fSource) {
+                    $response = Http::withHeaders($this->getHeaders())
+                        ->timeout(30)
+                        ->get("{$this->baseUrl}/api/manga.php", [
+                            'source' => $fSource,
+                            'slug' => $slug
+                        ]);
+                    if ($response->successful()) break;
+                }
             }
 
             if (!$response->successful()) {
@@ -151,6 +171,13 @@ class ComicasoService
     {
         try {
             $source = 'comicazen'; // Default
+            $explicitSource = false;
+            if (str_contains($mangaSlug, '__')) {
+                $parts = explode('__', $mangaSlug, 2);
+                $source = $parts[0];
+                $mangaSlug = $parts[1];
+                $explicitSource = true;
+            }
             
             $response = Http::withHeaders($this->getHeaders())
                 ->timeout(30)
@@ -160,7 +187,7 @@ class ComicasoService
                     'chapter' => $chapterSlug
                 ]);
 
-            if (!$response->successful()) {
+            if (!$response->successful() && !$explicitSource) {
                 // Try 'medusa'
                 $response = Http::withHeaders($this->getHeaders())
                     ->timeout(30)
@@ -169,6 +196,20 @@ class ComicasoService
                         'manga' => $mangaSlug,
                         'chapter' => $chapterSlug
                     ]);
+            }
+
+            if (!$response->successful() && $explicitSource) {
+                $fallbackSources = array_filter(['comicazen', 'medusa'], fn($s) => $s !== $source);
+                foreach ($fallbackSources as $fSource) {
+                    $response = Http::withHeaders($this->getHeaders())
+                        ->timeout(30)
+                        ->get("{$this->baseUrl}/api/chapter.php", [
+                            'source' => $fSource,
+                            'manga' => $mangaSlug,
+                            'chapter' => $chapterSlug
+                        ]);
+                    if ($response->successful()) break;
+                }
             }
 
             if (!$response->successful()) {

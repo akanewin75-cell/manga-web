@@ -78,6 +78,10 @@ class HomeController extends Controller
         // 3. Get Discoveries (latest from Comicazen/MangaDex)
         $results = $this->discoveryService->search(null, $page);
 
+        if ($request->ajax()) {
+            return view('partials.manga-grid-items', ['items' => $results]);
+        }
+
         // If it's the home page root '/', we use compact names as before
         if ($request->path() === '/') {
             $discoveries = array_slice($results, 0, 12);
@@ -113,6 +117,10 @@ class HomeController extends Controller
         $trending = $trendingQuery->take(5)->get();
 
         $results = $this->discoveryService->search($query, $page);
+
+        if ($request->ajax()) {
+            return view('partials.manga-grid-items', ['items' => $results]);
+        }
 
         return view('explore', compact('results', 'query', 'page', 'trending'));
     }

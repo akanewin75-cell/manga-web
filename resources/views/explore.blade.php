@@ -146,57 +146,83 @@
     </div>
 
     <!-- Results Grid -->
-    <div class="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-8 mb-16">
-        @forelse($gridItems as $manga)
-            <a href="{{ route('manga.show', ['type' => $manga['source_type'], 'id' => $manga['source_id']]) }}" class="group block">
-                <div class="relative aspect-[3/4] rounded-2xl md:rounded-3xl overflow-hidden mb-2 md:mb-4 border border-lunar-border group-hover:border-lunar-accent transition-soft shadow-xl">
-                    <img src="@proxy($manga['cover'] ?? 'https://via.placeholder.com/300x400?text=No+Cover')" 
-                        class="w-full h-full object-cover transition-soft group-hover:scale-110">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-soft flex items-end p-2 md:p-6">
-                        @if($manga['source_type'] != 'comicaso')
-                        <span class="bg-lunar-accent text-white text-[7px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-3 md:py-1 rounded-full uppercase tracking-tighter">
-                            {{ $manga['source_type'] }}
-                        </span>
-                        @endif
-                    </div>
-                </div>
-                <h3 class="font-bold text-gray-200 group-hover:text-lunar-accent transition-soft line-clamp-2 text-[10px] md:text-base leading-tight uppercase">
-                    {{ $manga['title'] }}
-                </h3>
-            </a>
-        @empty
-            @if($carouselItems->isEmpty())
-                <div class="col-span-full py-40 text-center">
-                    <div class="text-6xl mb-8">🌌</div>
-                    <h2 class="text-2xl font-bold text-gray-600 uppercase tracking-widest">No stories found in this sector</h2>
-                    <p class="text-gray-700 mt-4">Try searching with different coordinates.</p>
-                </div>
-            @endif
-        @endforelse
+    <div id="manga-grid" class="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-8 mb-16">
+        @include('partials.manga-grid-items', ['items' => $gridItems])
     </div>
 
-    <!-- Pagination -->
-    @if(count($results) > 0)
-    <div class="flex justify-center items-center gap-6">
-        @if(($page ?? 1) > 1)
-            <a href="{{ url()->current() }}?q={{ $query }}&page={{ ($page ?? 1) - 1 }}" 
-               class="bg-lunar-card border border-lunar-border text-white px-8 py-4 rounded-2xl font-black tracking-widest hover:border-lunar-accent transition-soft uppercase text-xs">
-                PREVIOUS SECTOR
-            </a>
-        @endif
-        
-        <span class="text-lunar-accent font-black font-orbitron text-xl">
-            PAGE {{ $page ?? 1 }}
-        </span>
-
-        @if(count($results) >= 12) {{-- Assuming if we got a full-ish page, there's likely more --}}
-            <a href="{{ url()->current() }}?q={{ $query }}&page={{ ($page ?? 1) + 1 }}" 
-               class="bg-lunar-accent text-white px-8 py-4 rounded-2xl font-black tracking-widest hover:shadow-lunar-accent/20 shadow-xl transition-soft uppercase text-xs">
-                NEXT SECTOR
-            </a>
-        @endif
+    <!-- Pagination / Load More -->
+    @if(count($results) >= 12)
+    <div class="flex justify-center items-center pb-20">
+        <button id="load-more" 
+                data-page="{{ ($page ?? 1) + 1 }}"
+                data-query="{{ $query ?? '' }}"
+                class="bg-lunar-accent text-white px-12 py-4 rounded-2xl font-black tracking-widest hover:shadow-lunar-accent/20 shadow-xl transition-soft uppercase text-sm flex items-center gap-3">
+            <span id="load-more-text">SELENGKAPNYA</span>
+            <div id="load-more-spinner" class="hidden">
+                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        </button>
     </div>
     @endif
 
 </div>
+
+@section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const loadMoreBtn = document.getElementById('load-more');
+        const mangaGrid = document.getElementById('manga-grid');
+        const spinner = document.getElementById('load-more-spinner');
+        const btnText = document.getElementById('load-more-text');
+
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', function() {
+                const page = loadMoreBtn.getAttribute('data-page');
+                const query = loadMoreBtn.getAttribute('data-query');
+                
+                // Show loading state
+                loadMoreBtn.disabled = true;
+                spinner.classList.remove('hidden');
+                btnText.innerText = 'MEMUAT...';
+
+                const url = new URL(window.location.href);
+                url.searchParams.set('page', page);
+                if (query) url.searchParams.set('q', query);
+
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    if (html.trim().length > 0) {
+                        // Append new items
+                        mangaGrid.insertAdjacentHTML('beforeend', html);
+                        
+                        // Update button for next page
+                        loadMoreBtn.setAttribute('data-page', parseInt(page) + 1);
+                        
+                        // Reset button state
+                        loadMoreBtn.disabled = false;
+                        spinner.classList.add('hidden');
+                        btnText.innerText = 'SELENGKAPNYA';
+                    } else {
+                        // No more items
+                        loadMoreBtn.remove();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading more manga:', error);
+                    loadMoreBtn.disabled = false;
+                    spinner.classList.add('hidden');
+                    btnText.innerText = 'COBA LAGI';
+                });
+            });
+        }
+    });
+</script>
 @endsection

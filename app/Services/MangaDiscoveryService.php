@@ -24,9 +24,10 @@ class MangaDiscoveryService
             $found = count($comicasoMangas);
             \Illuminate\Support\Facades\Log::info("Comicaso: Found $found items for page $page");
             foreach ($comicasoMangas as $manga) {
+                $sourceId = ($manga['original_source'] ?? 'comicazen') . '__' . $manga['id'];
                 $results[] = [
-                    'id' => $manga['id'],
-                    'source_id' => $manga['id'],
+                    'id' => $sourceId,
+                    'source_id' => $sourceId,
                     'source_type' => 'comicaso',
                     'title' => $manga['title'],
                     'slug' => $manga['slug'],
@@ -57,6 +58,9 @@ class MangaDiscoveryService
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Comicazen Search Failed: " . $e->getMessage());
         }
+
+        // 3. Unique results by slug to avoid duplicates across sources
+        $results = collect($results)->unique('slug')->values()->all();
 
         // Apply NSFW Filtering
         $nsfwEnabled = auth()->check() ? auth()->user()->nsfw_enabled : session('nsfw_enabled', false);

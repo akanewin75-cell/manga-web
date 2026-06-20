@@ -272,12 +272,15 @@ class MangaController extends Controller
 
                 $host = parse_url($manga->cover_url, PHP_URL_HOST);
                 if ($host) {
-                    if (str_contains($host, 'comicazen')) {
+                    if (str_contains($host, 'imgmacha') || str_contains($host, 'comicaso') || str_contains($host, 'imgmanga') || str_contains($host, 'sektekomik')) {
+                        $headers['Referer'] = 'https://v3.comicaso.pro/';
+                        $headers['Origin'] = 'https://v3.comicaso.pro';
+                    } elseif (str_contains($host, 'comicazen')) {
                         $headers['Referer'] = 'https://comicazen.com/';
                     } elseif (str_contains($host, 'mangadex')) {
                         $headers['Referer'] = 'https://mangadex.org/';
-                    } elseif (str_contains($host, 'comicaso') || str_contains($host, 'imgmanga')) {
-                        $headers['Referer'] = 'https://v3.comicaso.pro/';
+                    } elseif (str_contains($host, 'medusa') || str_contains($manga->cover_url, '/medusa/')) {
+                        $headers['Referer'] = 'https://medusascans.pro/';
                     }
                 }
 
@@ -333,14 +336,14 @@ class MangaController extends Controller
 
         $host = parse_url($url, PHP_URL_HOST);
         if ($host) {
-            if (str_contains($host, 'comicazen')) {
+            if (str_contains($host, 'imgmacha') || str_contains($host, 'comicaso') || str_contains($host, 'imgmanga') || str_contains($host, 'sektekomik')) {
+                $headers['Referer'] = 'https://v3.comicaso.pro/';
+                $headers['Origin'] = 'https://v3.comicaso.pro';
+            } elseif (str_contains($host, 'comicazen')) {
                 $headers['Referer'] = 'https://comicazen.com/';
             } elseif (str_contains($host, 'mangadex')) {
                 $headers['Referer'] = 'https://mangadex.org/';
-            } elseif (str_contains($host, 'comicaso') || str_contains($host, 'imgmanga') || str_contains($host, 'sektekomik')) {
-                $headers['Referer'] = 'https://v3.comicaso.pro/';
-                $headers['Origin'] = 'https://v3.comicaso.pro';
-            } elseif (str_contains($host, 'medusa')) {
+            } elseif (str_contains($host, 'medusa') || str_contains($url, '/medusa/')) {
                 $headers['Referer'] = 'https://medusascans.pro/';
             } else {
                 $headers['Referer'] = 'https://' . $host . '/';
