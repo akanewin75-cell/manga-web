@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'comicaso' => [
+        'cookie' => env('COMICASO_COOKIE'),
+    ],
+
 ];
+

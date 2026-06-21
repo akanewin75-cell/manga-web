@@ -38,6 +38,8 @@
         showUI: true, 
         autoNext: localStorage.getItem('autoNext') === 'true',
         atBottom: false,
+        showEndPopup: false,
+        hasTriggeredPopup: false,
         nextUrl: '{{ $nextChapter ? route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $nextChapter['id']]) : '' }}',
         isRedirecting: false,
         canTrigger: false,
@@ -78,11 +80,16 @@
             }
         });
 
-        // Intersection Observer for Auto Next
+        // Intersection Observer for Auto Next & Pop-up
         const observer = new IntersectionObserver((entries) => {
             atBottom = entries[0].isIntersecting;
-            if (atBottom && autoNext) {
-                triggerRedirect();
+            if (atBottom) {
+                if (autoNext) {
+                    triggerRedirect();
+                } else if (!hasTriggeredPopup) {
+                    showEndPopup = true;
+                    hasTriggeredPopup = true;
+                }
             }
         }, { threshold: 0.1 });
 
@@ -121,14 +128,6 @@
                         <h1 class="font-black font-orbitron text-sm uppercase tracking-tighter truncate max-w-[200px] md:max-w-md">
                             {{ $mangaTitle }}
                         </h1>
-                        <!-- Auto Next Toggle -->
-                        <button 
-                            @click.stop="autoNext = !autoNext" 
-                            class="flex items-center gap-2 px-3 py-1 rounded-full border transition-soft"
-                            :class="autoNext ? 'bg-lunar-neon/10 border-lunar-neon text-lunar-neon' : 'bg-white/5 border-white/10 text-gray-500'">
-                            <div class="w-1.5 h-1.5 rounded-full" :class="autoNext ? 'bg-lunar-neon animate-pulse' : 'bg-gray-500'"></div>
-                            <span class="text-[9px] font-black uppercase tracking-widest">Auto Next</span>
-                        </button>
                     </div>
                     <p class="text-[10px] text-lunar-accent font-bold uppercase tracking-widest">{{ $chapterId }}</p>
                 </div>
@@ -191,7 +190,7 @@
             <!-- Comments Section (Chapter End) -->
             <div class="max-w-4xl mx-auto px-6 mt-10 mb-32" @click.stop>
                 <div class="flex items-center gap-4 mb-8">
-                    <h2 class="text-2xl font-black font-orbitron uppercase italic">Chapter <span class="text-lunar-accent">Intel</span></h2>
+                    <h2 class="text-2xl font-black font-orbitron uppercase italic">Comment <span class="text-lunar-accent">Chapter</span></h2>
                 </div>
 
                 <div class="bg-lunar-card/30 border border-lunar-border rounded-[32px] p-8 md:p-10">
@@ -284,7 +283,7 @@
                             </div>
                         @empty
                             <div class="py-6 text-center">
-                                <p class="text-gray-700 font-bold uppercase tracking-widest text-[10px] italic">No intel reported for this chapter yet.</p>
+                                <p class="text-gray-700 font-bold uppercase tracking-widest text-[10px] italic">masih kosong 🥲</p>
                             </div>
                         @endforelse
                     </div>
@@ -313,22 +312,99 @@
         </button>
     </div>
 
-    <!-- Bottom Nav -->
-    <div class="fixed bottom-0 left-0 w-full py-10 border-t border-lunar-border bg-lunar-card/30 backdrop-blur-md z-50 transition-transform duration-500"
-         :class="!showUI ? 'translate-y-full' : 'translate-y-0'"
+    <!-- Bottom Reader Bar (Floating Pill Menu) -->
+    <div class="reader-nav fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-md z-50 border border-lunar-border py-3 px-5 rounded-[24px] transition-all duration-500 shadow-2xl flex items-center justify-between"
+         :class="!showUI ? 'translate-y-28 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'"
          @click.stop>
-        <div class="max-w-lg mx-auto text-center px-6">
-            <h3 class="text-xl font-black font-orbitron mb-6 uppercase italic">End of <span class="text-lunar-accent">Chapter</span></h3>
-            <div class="flex items-center gap-4">
+        <!-- Left: Prev Chapter -->
+        <div>
+            @if($prevChapter)
+                <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $prevChapter['id']]) }}" 
+                    class="btn-nav px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest block">
+                    PREV
+                </a>
+            @else
+                <button disabled class="btn-nav px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest block">PREV</button>
+            @endif
+        </div>
+
+        <!-- Center: Chapter List/Exit & Auto Next -->
+        <div class="flex items-center gap-2">
+            <!-- Auto Next Toggle -->
+            <button 
+                @click.stop="autoNext = !autoNext" 
+                class="flex items-center gap-2 px-3 py-2 rounded-xl border transition-soft"
+                :class="autoNext ? 'bg-lunar-neon/10 border-lunar-neon text-lunar-neon' : 'bg-white/5 border-white/10 text-gray-500'">
+                <div class="w-1.5 h-1.5 rounded-full" :class="autoNext ? 'bg-lunar-neon animate-pulse' : 'bg-gray-500'"></div>
+                <span class="text-[9px] font-black uppercase tracking-widest">AUTO</span>
+            </button>
+            <a href="/manga/{{ $type }}/{{ $mangaId }}" 
+               class="bg-white/5 text-gray-400 border border-white/5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-soft block">
+                EXIT
+            </a>
+        </div>
+
+        <!-- Right: Next Chapter -->
+        <div>
+            @if($nextChapter)
+                <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $nextChapter['id']]) }}" 
+                    class="btn-nav px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-lunar-accent text-lunar-accent block">
+                    NEXT
+                </a>
+            @else
+                <button disabled class="btn-nav px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest block">NEXT</button>
+            @endif
+        </div>
+    </div>
+
+    <!-- End of Chapter Pop-up Modal -->
+    <div x-show="showEndPopup" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-black/75 backdrop-blur-sm"
+         @click="showEndPopup = false"
+         x-cloak>
+        <div class="bg-lunar-card border border-lunar-border rounded-[32px] p-8 max-w-sm w-full text-center shadow-2xl relative"
+             @click.stop>
+            <!-- Close button -->
+            <button @click="showEndPopup = false" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-soft">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
+            <!-- Icon / Graphic -->
+            <div class="w-16 h-16 bg-lunar-accent/10 border border-lunar-accent/20 text-lunar-accent rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+
+            <h3 class="text-2xl font-black font-orbitron mb-6 uppercase tracking-wide">
+                End of <span class="text-lunar-accent">Chapter</span>
+            </h3>
+
+            <div class="flex flex-col gap-3">
                 @if($nextChapter)
                     <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $nextChapter['id']]) }}" 
-                        class="flex-grow bg-lunar-accent text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-lunar-accent/20 hover:scale-105 transition-soft text-sm">
-                        NEXT CHAPTER
+                        class="w-full bg-lunar-accent text-white py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-lunar-accent/20 hover:scale-[1.02] transition-soft">
+                        Next Chapter
                     </a>
                 @endif
-                <a href="/manga/{{ $type }}/{{ $mangaId }}" class="flex-grow bg-white/5 text-gray-400 py-4 rounded-2xl font-black uppercase tracking-widest border border-white/5 hover:bg-white/10 transition-soft text-sm">
-                    EXIT
-                </a>
+                <div class="flex gap-3">
+                    <a href="/manga/{{ $type }}/{{ $mangaId }}" 
+                       class="flex-1 bg-white/5 text-gray-300 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] border border-white/5 hover:bg-white/10 hover:border-white/10 transition-soft">
+                        Exit
+                    </a>
+                    <button @click="showEndPopup = false" 
+                       class="flex-grow bg-white/5 text-gray-500 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] border border-white/5 hover:text-white transition-soft">
+                        Stay Here
+                    </button>
+                </div>
             </div>
         </div>
     </div>

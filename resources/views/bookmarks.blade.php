@@ -12,8 +12,7 @@
 
     @if($bookmarks->count() > 0)
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
-            @foreach($bookmarks as $bookmark)
-                @php $manga = $bookmark->manga; @endphp
+            @foreach($bookmarks as $manga)
                 <a href="{{ route('manga.show', ['type' => $manga->source_type, 'id' => $manga->source_id]) }}" class="group block">
                     <div class="relative aspect-[3/4.5] rounded-3xl overflow-hidden mb-5 border border-lunar-border shadow-xl group-hover:border-lunar-accent/50 group-hover:shadow-lunar-accent/10 transition-soft">
                         <img src="@proxy($manga->cover_url)" alt="{{ $manga->title }}" class="w-full h-full object-cover group-hover:scale-110 transition-soft">

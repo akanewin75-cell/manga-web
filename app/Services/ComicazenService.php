@@ -60,7 +60,10 @@ class ComicazenService
             }
             
             try {
-                $response = Http::withHeaders($this->getHeaders())->timeout(20)->get($url);
+                $response = Http::withHeaders($this->getHeaders())
+                    ->withOptions(['verify' => false])
+                    ->timeout(20)
+                    ->get($url);
                 if (!$response->successful()) continue;
 
                 $html = $response->body();
@@ -180,7 +183,10 @@ class ComicazenService
             $url = "{$this->baseUrl}{$path}/{$slug}/";
             try {
                 \Illuminate\Support\Facades\Log::info("Comicazen: Trying details URL: $url");
-                $res = Http::withHeaders($this->getHeaders())->timeout(30)->get($url);
+                $res = Http::withHeaders($this->getHeaders())
+                    ->withOptions(['verify' => false])
+                    ->timeout(30)
+                    ->get($url);
                 if ($res->successful()) {
                     $response = $res;
                     $activePath = $path;
@@ -284,7 +290,13 @@ class ComicazenService
                 if (preg_match('/post-(\d+)/', $html, $m)) $mangaId = $m[1];
                 elseif (preg_match('/"manga_id":"(\d+)"/', $html, $m)) $mangaId = $m[1];
                 if ($mangaId) {
-                    $ajaxRes = Http::asForm()->withHeaders($this->getHeaders("{$this->baseUrl}{$activePath}/{$slug}/"))->post("{$this->baseUrl}/wp-admin/admin-ajax.php", ['action' => 'manga_get_chapters', 'manga' => $mangaId]);
+                    $ajaxRes = Http::asForm()
+                        ->withHeaders($this->getHeaders("{$this->baseUrl}{$activePath}/{$slug}/"))
+                        ->withOptions(['verify' => false])
+                        ->post("{$this->baseUrl}/wp-admin/admin-ajax.php", [
+                            'action' => 'manga_get_chapters',
+                            'manga' => $mangaId
+                        ]);
                     if ($ajaxRes->successful()) {
                         $ajaxHtml = $ajaxRes->body();
                         libxml_use_internal_errors(true);

@@ -16,7 +16,7 @@ class ComicasoService
 
     protected function getHeaders()
     {
-        return [
+        $headers = [
             'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             'Accept' => 'application/json, text/plain, */*',
             'Accept-Language' => 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -28,6 +28,13 @@ class ComicasoService
             'Cache-Control' => 'no-cache',
             'Pragma' => 'no-cache',
         ];
+
+        $cookie = config('services.comicaso.cookie');
+        if ($cookie) {
+            $headers['Cookie'] = $cookie;
+        }
+
+        return $headers;
     }
 
     public function searchManga($query = null, $page = 1)
@@ -46,6 +53,7 @@ class ComicasoService
             Log::info("Comicaso Request: " . "{$this->baseUrl}/api/home.php?" . http_build_query($params));
             
             $response = Http::withHeaders($this->getHeaders())
+                ->withOptions(['verify' => false])
                 ->timeout(30)
                 ->get("{$this->baseUrl}/api/home.php", $params);
 
@@ -100,6 +108,7 @@ class ComicasoService
             Log::info("Comicaso Detail Fetching: source=$source, slug=$slug");
             
             $response = Http::withHeaders($this->getHeaders())
+                ->withOptions(['verify' => false])
                 ->timeout(30)
                 ->get("{$this->baseUrl}/api/manga.php", [
                     'source' => $source,
@@ -109,6 +118,7 @@ class ComicasoService
             if (!$response->successful() && !$explicitSource) {
                 // Try 'medusa' if comicazen fails
                 $response = Http::withHeaders($this->getHeaders())
+                    ->withOptions(['verify' => false])
                     ->timeout(30)
                     ->get("{$this->baseUrl}/api/manga.php", [
                         'source' => 'medusa',
@@ -120,6 +130,7 @@ class ComicasoService
                 $fallbackSources = array_filter(['comicazen', 'medusa'], fn($s) => $s !== $source);
                 foreach ($fallbackSources as $fSource) {
                     $response = Http::withHeaders($this->getHeaders())
+                        ->withOptions(['verify' => false])
                         ->timeout(30)
                         ->get("{$this->baseUrl}/api/manga.php", [
                             'source' => $fSource,
@@ -135,6 +146,11 @@ class ComicasoService
             }
 
             $json = $response->json();
+            if ($json && isset($json['locked']) && $json['locked'] == 1) {
+                Log::warning("Comicaso Details Locked for $slug: " . ($json['message'] ?? 'Login required'));
+                return null;
+            }
+
             if (!$json || !isset($json['data'])) {
                 return null;
             }
@@ -180,6 +196,7 @@ class ComicasoService
             }
             
             $response = Http::withHeaders($this->getHeaders())
+                ->withOptions(['verify' => false])
                 ->timeout(30)
                 ->get("{$this->baseUrl}/api/chapter.php", [
                     'source' => $source,
@@ -190,6 +207,7 @@ class ComicasoService
             if (!$response->successful() && !$explicitSource) {
                 // Try 'medusa'
                 $response = Http::withHeaders($this->getHeaders())
+                    ->withOptions(['verify' => false])
                     ->timeout(30)
                     ->get("{$this->baseUrl}/api/chapter.php", [
                         'source' => 'medusa',
@@ -202,6 +220,7 @@ class ComicasoService
                 $fallbackSources = array_filter(['comicazen', 'medusa'], fn($s) => $s !== $source);
                 foreach ($fallbackSources as $fSource) {
                     $response = Http::withHeaders($this->getHeaders())
+                        ->withOptions(['verify' => false])
                         ->timeout(30)
                         ->get("{$this->baseUrl}/api/chapter.php", [
                             'source' => $fSource,
@@ -218,6 +237,11 @@ class ComicasoService
             }
 
             $json = $response->json();
+            if ($json && isset($json['locked']) && $json['locked'] == 1) {
+                Log::warning("Comicaso Chapter Locked for $mangaSlug / $chapterSlug: " . ($json['message'] ?? 'Login required'));
+                return [];
+            }
+
             if (!$json || !isset($json['data']['images'])) {
                 return [];
             }
