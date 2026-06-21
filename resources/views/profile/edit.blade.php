@@ -75,7 +75,7 @@
                     <!-- 18+ Toggle -->
                     <div class="bg-lunar-base/50 p-4 rounded-2xl border border-lunar-border text-left cursor-pointer group hover:border-lunar-accent/50 transition-soft"
                         x-data="{ 
-                            nsfw: {{ (auth()->user()->nsfw_enabled ?? session('nsfw_enabled', false)) ? 'true' : 'false' }},
+                            nsfw: {{ ((auth()->check() && auth()->user()->nsfw_enabled) || session('nsfw_enabled', false)) ? 'true' : 'false' }},
                             async toggle() {
                                 // Toggle immediately for responsiveness
                                 this.nsfw = !this.nsfw;

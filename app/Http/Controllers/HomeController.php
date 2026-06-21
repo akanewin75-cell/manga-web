@@ -39,7 +39,7 @@ class HomeController extends Controller
     public function index(Request $request)
     {
         $page = (int) $request->query('page', 1);
-        $nsfwEnabled = auth()->check() ? auth()->user()->nsfw_enabled : session('nsfw_enabled', false);
+        $nsfwEnabled = (auth()->check() && auth()->user()->nsfw_enabled) || session('nsfw_enabled', false);
 
         // 1. Get Trending from Database (recently added or most likes)
         $trendingQuery = Manga::orderBy('likes_count', 'desc');
@@ -101,7 +101,7 @@ class HomeController extends Controller
     {
         $query = $request->query('q');
         $page = (int) $request->query('page', 1);
-        $nsfwEnabled = auth()->check() ? auth()->user()->nsfw_enabled : session('nsfw_enabled', false);
+        $nsfwEnabled = (auth()->check() && auth()->user()->nsfw_enabled) || session('nsfw_enabled', false);
 
         $trendingQuery = Manga::orderBy('likes_count', 'desc');
         if (!$nsfwEnabled) {

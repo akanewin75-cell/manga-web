@@ -63,7 +63,7 @@ class MangaDiscoveryService
         $results = collect($results)->unique('slug')->values()->all();
 
         // Apply NSFW Filtering
-        $nsfwEnabled = auth()->check() ? auth()->user()->nsfw_enabled : session('nsfw_enabled', false);
+        $nsfwEnabled = (auth()->check() && auth()->user()->nsfw_enabled) || session('nsfw_enabled', false);
         $beforeCount = count($results);
         if (!$nsfwEnabled) {
             $results = array_filter($results, function ($manga) {

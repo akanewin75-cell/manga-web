@@ -71,7 +71,7 @@ class MangaController extends Controller
         }
 
         // NEW: 18+ Access Control
-        $nsfwEnabled = auth()->check() ? auth()->user()->nsfw_enabled : session('nsfw_enabled', false);
+        $nsfwEnabled = (auth()->check() && auth()->user()->nsfw_enabled) || session('nsfw_enabled', false);
         $genre = strtolower($info->genre ?? '');
         $isRestricted = str_contains($genre, '18+') || 
                         str_contains($genre, 'mature') || 
