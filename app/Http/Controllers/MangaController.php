@@ -51,6 +51,21 @@ class MangaController extends Controller
         $localChapters = $localManga ? $localManga->chapters()->pluck('chapter_num')->toArray() : [];
         $chapters = $info->chapters ?? [];
 
+        if ($type === 'local' && $localManga) {
+            $chapters = $localManga->chapters()
+                ->get()
+                ->sortBy(function($c) {
+                    return (float) preg_replace('/[^0-9.]/', '', $c->chapter_num);
+                }, SORT_REGULAR, true)
+                ->map(fn($c) => [
+                    'id' => $c->source_chapter_id ?? $c->chapter_num,
+                    'title' => $c->title ?? 'Chapter ' . $c->chapter_num,
+                    'chapter_num' => $c->chapter_num
+                ])
+                ->values()
+                ->toArray();
+        }
+
         // Fetch read chapters for the user
         $readChapterIds = [];
         $lastReadChapterId = null;
@@ -98,7 +113,34 @@ class MangaController extends Controller
     {
         \Illuminate\Support\Facades\Log::info("MangaController: Reading - Type: $type, Manga: $mangaId, Chapter: $chapterId");
         
-        $info = $this->discoveryService->getDetails($type, $mangaId);
+        $localManga = Manga::where('source_type', $type)->where('source_id', $mangaId)->first();
+        
+        if ($type === 'local' && $localManga) {
+            $info = [
+                'title' => $localManga->title,
+                'description' => $localManga->description,
+                'cover' => $localManga->cover_url,
+                'genre' => $localManga->genre,
+                'source_type' => 'local',
+                'source_id' => $localManga->source_id,
+                'slug' => $localManga->slug,
+                'chapters' => $localManga->chapters()
+                    ->get()
+                    ->sortBy(function($c) {
+                        return (float) preg_replace('/[^0-9.]/', '', $c->chapter_num);
+                    }, SORT_REGULAR, true)
+                    ->map(fn($c) => [
+                        'id' => $c->source_chapter_id ?? $c->chapter_num,
+                        'title' => $c->title ?? 'Chapter ' . $c->chapter_num,
+                        'chapter_num' => $c->chapter_num
+                    ])
+                    ->values()
+                    ->toArray()
+            ];
+        } else {
+            $info = $this->discoveryService->getDetails($type, $mangaId);
+        }
+
         if (!$info) abort(404);
 
         $chapters = $info['chapters'] ?? [];
@@ -142,13 +184,14 @@ class MangaController extends Controller
         }
 
         // 1. Check local chapter first
-        $localManga = Manga::where('source_type', $type)->where('source_id', $mangaId)->first();
         $images = [];
 
         if ($localManga) {
             $localChapter = $localManga->chapters()
-                ->where('source_chapter_id', $chapterId)
-                ->orWhere('chapter_num', $chapterId)
+                ->where(function($query) use ($chapterId) {
+                    $query->where('source_chapter_id', $chapterId)
+                          ->orWhere('chapter_num', $chapterId);
+                })
                 ->first();
 
             if ($localChapter && $localChapter->is_local) {

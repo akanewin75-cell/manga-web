@@ -75,6 +75,13 @@ Route::middleware(['auth'])->group(function () {
 
         $slug = $request->slug;
         $chapter = $request->chapter;
+        
+        // Clean chapter number for ordering (e.g. extracts '1.5' or '2' from 'chapter-1.5')
+        $chapterNumClean = preg_replace('/[^0-9.]/', '', $chapter);
+        if (empty($chapterNumClean)) {
+            $chapterNumClean = $chapter;
+        }
+
         $path = public_path("mangas/$slug/chapters/$chapter");
 
         if(!File::exists($path)) File::makeDirectory($path, 0777, true, true);
@@ -83,6 +90,21 @@ Route::middleware(['auth'])->group(function () {
             $name = time().'_'.$image->getClientOriginalName();
             $image->move($path, $name);
         }
+
+        $manga = Manga::where('slug', $slug)->firstOrFail();
+        
+        \App\Models\Chapter::updateOrCreate(
+            [
+                'manga_id' => $manga->id,
+                'chapter_num' => $chapterNumClean,
+            ],
+            [
+                'source_chapter_id' => $chapter,
+                'title' => 'Chapter ' . $chapterNumClean,
+                'is_local' => true,
+                'local_path' => "mangas/$slug/chapters/$chapter"
+            ]
+        );
 
         return back()->with('success', 'Chapter berhasil diupload 🔥');
     });
