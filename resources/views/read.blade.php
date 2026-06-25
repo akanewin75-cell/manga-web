@@ -12,18 +12,24 @@
         height: auto;
     }
     .reader-nav {
-        background: rgba(13, 13, 13, 0.9);
-        backdrop-filter: blur(10px);
+        background: rgba(13, 13, 13, 0.35);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
     .btn-nav {
-        background: #1a1a1a;
-        border: 1px solid #333;
+        background: rgba(26, 26, 26, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         transition: all 0.3s ease;
     }
     .btn-nav:hover:not(:disabled) {
         border-color: #7b7bff;
         color: #7b7bff;
-        background: #0d0d0d;
+        background: rgba(123, 123, 255, 0.1);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
     }
     .btn-nav:disabled {
         opacity: 0.3;
@@ -37,6 +43,55 @@
      x-data="{ 
         showUI: true, 
         autoNext: localStorage.getItem('autoNext') === 'true',
+        showSettings: false,
+        imageWidth: localStorage.getItem('readerWidth') || 'medium',
+        autoScroll: false,
+        scrollSpeed: parseInt(localStorage.getItem('scrollSpeed') || '2'),
+        scrollInterval: null,
+        startAutoScroll() {
+            if (this.scrollInterval) cancelAnimationFrame(this.scrollInterval);
+            
+            const scroll = () => {
+                if (!this.autoScroll) return;
+                
+                const speedVal = parseFloat(this.scrollSpeed) || 2;
+                // Exponential scaling for pixel step per frame:
+                // Speed 1: 1px (~60 px/s at 60fps)
+                // Speed 5: ~7px (~420 px/s at 60fps)
+                // Speed 10: ~23px (~1380 px/s at 60fps)
+                const step = Math.pow(speedVal, 1.8) * 0.35 + 0.65;
+                
+                window.scrollBy(0, Math.round(step));
+                
+                const actualY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+                const maxScroll = (document.documentElement.scrollHeight || document.body.scrollHeight) - window.innerHeight;
+                
+                // Only stop at bottom if page is actually scrollable and we reached the bottom limit
+                if (maxScroll > 300 && actualY >= maxScroll - 15) {
+                    this.stopAutoScroll();
+                } else {
+                    this.scrollInterval = requestAnimationFrame(scroll);
+                }
+            };
+            
+            this.autoScroll = true;
+            this.scrollInterval = requestAnimationFrame(scroll);
+        },
+        stopAutoScroll() {
+            if (this.scrollInterval) {
+                cancelAnimationFrame(this.scrollInterval);
+                this.scrollInterval = null;
+            }
+            this.autoScroll = false;
+        },
+        toggleAutoScroll() {
+            this.autoScroll = !this.autoScroll;
+            if (this.autoScroll) {
+                this.startAutoScroll();
+            } else {
+                this.stopAutoScroll();
+            }
+        },
         atBottom: false,
         showEndPopup: false,
         hasTriggeredPopup: false,
@@ -58,6 +113,23 @@
      }" 
      @click="showUI = !showUI"
      x-init="
+        // Stop auto scroll when manual scrolling is detected
+        const stopOnManual = () => {
+            if (autoScroll) {
+                stopAutoScroll();
+            }
+        };
+        window.addEventListener('wheel', stopOnManual, { passive: true });
+        window.addEventListener('touchmove', stopOnManual, { passive: true });
+        window.addEventListener('keydown', (e) => {
+            if (autoScroll) {
+                const keys = ['Space', ' ', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'];
+                if (keys.includes(e.key) || keys.includes(e.code)) {
+                    stopAutoScroll();
+                }
+            }
+        }, { passive: true });
+
         // Enable auto-trigger only after a short delay to prevent scroll-preservation loops
         setTimeout(() => { canTrigger = true }, 2000);
 
@@ -113,7 +185,7 @@
     </template>
     
     <!-- Top Reader Bar -->
-    <div class="reader-nav fixed top-20 left-0 w-full z-50 border-b border-lunar-border py-4 px-6 transition-transform duration-500"
+    <div class="reader-nav fixed top-20 left-0 w-full z-50 py-4 px-6 transition-transform duration-500"
          :class="!showUI ? '-translate-y-[200%]' : 'translate-y-0'"
          @click.stop>
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -143,9 +215,9 @@
                     <button disabled class="btn-nav px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest">PREV</button>
                 @endif
 
-                <div class="bg-lunar-base border border-lunar-border px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-lunar-accent">
+                <a href="/manga/{{ $type }}/{{ $mangaId }}" class="btn-nav px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-lunar-accent hover:text-white">
                     CHAPTER LIST
-                </div>
+                </a>
 
                 @if($nextChapter)
                     <a href="{{ route('manga.read', ['type' => $type, 'mangaId' => $mangaId, 'chapterId' => $nextChapter['id']]) }}" 
@@ -172,6 +244,7 @@
                 @foreach($images as $image)
                     <img src="@proxy($image)" 
                         class="reader-image cursor-pointer" 
+                        :style="imageWidth === 'narrow' ? 'max-width: 700px !important' : (imageWidth === 'medium' ? 'max-width: 1000px !important' : (imageWidth === 'wide' ? 'max-width: 1300px !important' : 'max-width: 100% !important'))"
                         loading="lazy"
                         onerror="this.onerror=null; this.src='{{ route('proxy.image', ['url' => $image]) }}'">
                 @endforeach
@@ -328,7 +401,7 @@
             @endif
         </div>
 
-        <!-- Center: Chapter List/Exit & Auto Next -->
+        <!-- Center: Chapter List/Exit & Auto Next & Settings -->
         <div class="flex items-center gap-2">
             <!-- Auto Next Toggle -->
             <button 
@@ -342,6 +415,15 @@
                class="bg-white/5 text-gray-400 border border-white/5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-soft block">
                 EXIT
             </a>
+            <button 
+                @click.stop="showSettings = !showSettings" 
+                class="bg-white/5 text-gray-400 border border-white/5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-soft block"
+                title="Settings">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
         </div>
 
         <!-- Right: Next Chapter -->
@@ -354,6 +436,81 @@
             @else
                 <button disabled class="btn-nav px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest block">NEXT</button>
             @endif
+        </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div x-show="showSettings"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-10"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-10"
+         class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm bg-black/20 backdrop-blur-2xl border border-white/10 p-6 rounded-[30px] shadow-2xl"
+         @click.stop
+         x-cloak>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-black font-orbitron text-xs uppercase tracking-wider text-lunar-accent">Reader Settings</h3>
+            <button @click="showSettings = false" class="text-gray-500 hover:text-white transition-soft">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="space-y-6">
+            <!-- Reading Width -->
+            <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Reading Width</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <template x-for="w in ['narrow', 'medium', 'wide', 'full']">
+                        <button @click="imageWidth = w; localStorage.setItem('readerWidth', w)"
+                                :class="imageWidth === w ? 'bg-lunar-accent text-white border-lunar-accent' : 'bg-white/5 text-gray-400 border-white/5 hover:bg-white/10'"
+                                class="py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-soft"
+                                x-text="w"></button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Auto Next -->
+            <div class="flex items-center justify-between pt-4 border-t border-white/5">
+                <div>
+                    <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400">Auto Next Chapter</label>
+                    <span class="text-[9px] text-gray-500 font-medium">Load next chapter automatically</span>
+                </div>
+                <button @click="autoNext = !autoNext"
+                        :class="autoNext ? 'bg-lunar-neon text-black' : 'bg-white/10 text-gray-400'"
+                        class="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-soft"
+                        x-text="autoNext ? 'ON' : 'OFF'"></button>
+            </div>
+
+            <!-- Auto Scroll Option -->
+            <div class="pt-4 border-t border-white/5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400">Auto Scroll</label>
+                        <span class="text-[9px] text-gray-500 font-medium">Scroll down automatically</span>
+                    </div>
+                    <button @click="toggleAutoScroll()"
+                            :class="autoScroll ? 'bg-lunar-neon text-black' : 'bg-white/10 text-gray-400'"
+                            class="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-soft"
+                            x-text="autoScroll ? 'ON' : 'OFF'"></button>
+                </div>
+                <!-- Speed Slider -->
+                <div x-show="autoScroll" 
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     class="space-y-2">
+                    <div class="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-gray-500">
+                        <span>Speed</span>
+                        <span class="text-lunar-accent" x-text="scrollSpeed + 'x'"></span>
+                    </div>
+                    <input type="range" min="1" max="10" x-model.number="scrollSpeed" @input="localStorage.setItem('scrollSpeed', scrollSpeed); if(autoScroll) startAutoScroll();"
+                           class="w-full accent-lunar-accent bg-white/10 rounded-lg appearance-none h-1.5 cursor-pointer">
+                </div>
+            </div>
         </div>
     </div>
 

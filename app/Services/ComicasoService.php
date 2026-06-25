@@ -141,17 +141,18 @@ class ComicasoService
             }
 
             if (!$response->successful()) {
-                Log::error("Comicaso Details Failed for $slug");
+                Log::error("Comicaso Details Failed for $slug. Status: " . $response->status() . " Response: " . substr($response->body(), 0, 300));
                 return null;
             }
 
             $json = $response->json();
             if ($json && isset($json['locked']) && $json['locked'] == 1) {
-                Log::warning("Comicaso Details Locked for $slug: " . ($json['message'] ?? 'Login required'));
+                Log::warning("Comicaso Details Locked for $slug: " . ($json['message'] ?? 'Login required') . ". Response: " . json_encode($json));
                 return null;
             }
 
             if (!$json || !isset($json['data'])) {
+                Log::warning("Comicaso Details response data missing for $slug. Response: " . substr($response->body(), 0, 300));
                 return null;
             }
 
@@ -232,17 +233,18 @@ class ComicasoService
             }
 
             if (!$response->successful()) {
-                Log::error("Comicaso Chapter Failed for $mangaSlug / $chapterSlug");
+                Log::error("Comicaso Chapter Failed for $mangaSlug / $chapterSlug. Status: " . $response->status() . " Response: " . substr($response->body(), 0, 300));
                 return [];
             }
 
             $json = $response->json();
             if ($json && isset($json['locked']) && $json['locked'] == 1) {
-                Log::warning("Comicaso Chapter Locked for $mangaSlug / $chapterSlug: " . ($json['message'] ?? 'Login required'));
+                Log::warning("Comicaso Chapter Locked for $mangaSlug / $chapterSlug: " . ($json['message'] ?? 'Login required') . ". Response: " . json_encode($json));
                 return [];
             }
 
             if (!$json || !isset($json['data']['images'])) {
+                Log::warning("Comicaso Chapter response images missing for $mangaSlug / $chapterSlug. Response: " . substr($response->body(), 0, 300));
                 return [];
             }
 

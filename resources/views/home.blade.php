@@ -73,23 +73,20 @@
             $carouselItems = $carouselItems->concat($bookmarks);
         }
         
-        // 2. Add Trending
+        // 2. Add Discoveries (Manga Terbaru / Latest Updates)
+        if(isset($discoveries)) {
+            $carouselItems = $carouselItems->concat($discoveries);
+        }
+        
+        // 3. Add Trending (as fallback if we don't have enough items)
         if(isset($trending)) {
             $carouselItems = $carouselItems->concat($trending);
         }
         
-        // 3. Unique filter and take 6
+        // 4. Unique filter and take 6
         $carouselItems = $carouselItems->unique(function ($item) {
             return ($item instanceof \App\Models\Manga) ? 'db_'.$item->id : 'ext_'.($item['source_id'] ?? $item['title']);
         })->take(6);
-
-        // 4. Fallback to discoveries if carousel is still too small or empty
-        if ($carouselItems->count() < 3 && isset($discoveries)) {
-            $carouselItems = $carouselItems->concat(collect($discoveries)->take(6))
-                ->unique(function ($item) {
-                    return ($item instanceof \App\Models\Manga) ? 'db_'.$item->id : 'ext_'.($item['source_id'] ?? $item['title']);
-                })->take(6);
-        }
     @endphp
 
     <div class="mb-12 relative" x-data="{ 

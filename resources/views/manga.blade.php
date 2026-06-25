@@ -96,7 +96,7 @@
                         <span class="bg-lunar-accent text-white text-[10px] font-black px-3 py-1 rounded-md uppercase tracking-[0.2em]">{{ $info->source_type }}</span>
                         @endif
                     </div>
-                    <h1 class="text-5xl md:text-7xl font-black font-orbitron mb-8 leading-tight italic uppercase text-glow-purple">
+                    <h1 class="text-3xl md:text-5xl font-black font-orbitron mb-8 leading-tight italic uppercase text-glow-purple">
                         {{ $info->title }}
                     </h1>
                     
