@@ -112,55 +112,70 @@
         }
      }" 
      @click="showUI = !showUI"
-     x-init="
+      x-init="
+        const data = $data;
+
         // Stop auto scroll when manual scrolling is detected
         const stopOnManual = () => {
-            if (autoScroll) {
-                stopAutoScroll();
+            if (data.autoScroll) {
+                data.stopAutoScroll();
             }
         };
         window.addEventListener('wheel', stopOnManual, { passive: true });
         window.addEventListener('touchmove', stopOnManual, { passive: true });
         window.addEventListener('keydown', (e) => {
-            if (autoScroll) {
+            if (data.autoScroll) {
                 const keys = ['Space', ' ', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'];
                 if (keys.includes(e.key) || keys.includes(e.code)) {
-                    stopAutoScroll();
+                    data.stopAutoScroll();
                 }
             }
         }, { passive: true });
 
         // Enable auto-trigger only after a short delay to prevent scroll-preservation loops
-        setTimeout(() => { canTrigger = true }, 2000);
+        setTimeout(() => { data.canTrigger = true }, 2000);
 
         $watch('showUI', value => {
             const nav = document.querySelector('nav.fixed');
+            const main = document.querySelector('main');
             if (nav) {
+                nav.style.transition = 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
                 if (value) {
-                    nav.classList.remove('-translate-y-full');
+                    nav.style.transform = 'translateY(0)';
+                    nav.style.opacity = '1';
+                    nav.style.pointerEvents = 'auto';
                 } else {
-                    nav.classList.add('-translate-y-full');
+                    nav.style.transform = 'translateY(-100%)';
+                    nav.style.opacity = '0';
+                    nav.style.pointerEvents = 'none';
                 }
-                nav.classList.add('transition-transform', 'duration-500');
+            }
+            if (main) {
+                main.style.transition = 'padding-top 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+                if (value) {
+                    main.style.paddingTop = '5rem';
+                } else {
+                    main.style.paddingTop = '0';
+                }
             }
         });
 
         $watch('autoNext', value => {
             localStorage.setItem('autoNext', value);
-            if (value && atBottom) {
-                triggerRedirect();
+            if (value && data.atBottom) {
+                data.triggerRedirect();
             }
         });
 
         // Intersection Observer for Auto Next & Pop-up
         const observer = new IntersectionObserver((entries) => {
-            atBottom = entries[0].isIntersecting;
-            if (atBottom) {
-                if (autoNext) {
-                    triggerRedirect();
-                } else if (!hasTriggeredPopup) {
-                    showEndPopup = true;
-                    hasTriggeredPopup = true;
+            data.atBottom = entries[0].isIntersecting;
+            if (data.atBottom) {
+                if (data.autoNext) {
+                    data.triggerRedirect();
+                } else if (!data.hasTriggeredPopup) {
+                    data.showEndPopup = true;
+                    data.hasTriggeredPopup = true;
                 }
             }
         }, { threshold: 0.1 });
@@ -185,10 +200,10 @@
     </template>
     
     <!-- Top Reader Bar -->
-    <div class="reader-nav fixed top-20 left-0 w-full z-50 py-4 px-6 transition-transform duration-500"
-         :class="!showUI ? '-translate-y-[200%]' : 'translate-y-0'"
-         @click.stop>
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+    <div class="reader-nav fixed top-20 left-0 w-full z-50 py-4 px-6 transition-all duration-500"
+         :class="!showUI ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4"
+             @click.stop>
             <div class="flex items-center gap-4">
                 <a href="/manga/{{ $type }}/{{ $mangaId }}" class="text-gray-500 hover:text-white transition-soft">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -232,7 +247,8 @@
     </div>
 
     <!-- Reader Content -->
-    <div class="py-10 pt-32">
+    <div class="py-10 transition-all duration-500"
+         :class="!showUI ? 'pt-0' : 'pt-32'">
         @if(isset($error))
             <div class="max-w-2xl mx-auto p-12 bg-red-500/10 border border-red-500/20 rounded-[40px] text-center">
                 <h2 class="text-2xl font-black font-orbitron text-red-500 mb-4 uppercase">TRANSMISSION ERROR</h2>
@@ -366,8 +382,8 @@
     </div>
 
     <!-- Quick Nav Buttons (Right Side) -->
-    <div class="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-[100] transition-transform duration-500"
-         :class="!showUI ? 'translate-x-[200%]' : 'translate-x-0'">
+    <div class="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-[100] transition-all duration-500"
+         :class="!showUI ? 'translate-x-full opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'">
         <button @click.stop="window.scrollTo({top: 0, behavior: 'smooth'})" 
                 class="w-12 h-12 rounded-2xl bg-lunar-card/80 backdrop-blur-xl border border-lunar-border text-gray-400 hover:text-lunar-accent hover:border-lunar-accent transition-soft shadow-2xl flex items-center justify-center group"
                 title="Scroll to Top">

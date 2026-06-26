@@ -174,7 +174,7 @@
     </div>
 
     <!-- Navbar -->
-    <nav class="fixed top-0 left-0 w-full z-[100] glass">
+    <nav class="fixed top-0 left-0 w-full z-[100] glass transition-transform duration-500">
         <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
             
             <a href="/" class="flex items-center gap-3 group">
