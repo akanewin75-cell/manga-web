@@ -175,203 +175,40 @@ class ComicazenService
 
     public function getMangaDetails($slug)
     {
-        $paths = ['/komik', '/manga'];
-        $response = null;
-        $activePath = $this->mangaPath;
-
-        foreach ($paths as $path) {
-            $url = "{$this->baseUrl}{$path}/{$slug}/";
-            try {
-                \Illuminate\Support\Facades\Log::info("Comicazen: Trying details URL: $url");
-                $res = Http::withHeaders($this->getHeaders())
-                    ->withOptions(['verify' => false])
-                    ->timeout(30)
-                    ->get($url);
-                if ($res->successful()) {
-                    $response = $res;
-                    $activePath = $path;
-                    break;
-                }
-            } catch (\Exception $e) {
-                continue;
-            }
-        }
-
-        if (!$response) {
-            \Illuminate\Support\Facades\Log::error("Comicazen: Failed to get response for slug: $slug");
-            return null;
-        }
-        $this->mangaPath = $activePath;
-        $html = $response->body();
-        $cookies = $response->cookies();
-        if ($cookies) \Illuminate\Support\Facades\Cache::put("comicazen_cookies_{$slug}", $cookies->toArray(), 600);
-
+        \Illuminate\Support\Facades\Log::info("ComicazenService: Delegating getMangaDetails to ComicasoService for $slug");
         try {
-            $info = ['title' => $slug, 'description' => '', 'cover' => null, 'genre' => '', 'chapters' => [], 'slug' => $slug, 'id' => $slug];
-            $jsonChapterIds = ['mjv2-chapters-data', 'mjv2-manga-data', 'manga-data', 'wp-manga-data'];
-            foreach ($jsonChapterIds as $jid) {
-                if (preg_match('/<script[^>]*id="'.$jid.'"[^>]*type="application\/json"[^>]*>(.*?)<\/script>/s', $html, $matches)) {
-                    $chaptersJson = json_decode(trim($matches[1]), true);
-                    if (is_array($chaptersJson)) {
-                        $items = $chaptersJson['chapters'] ?? $chaptersJson;
-                        if (is_array($items)) {
-                            foreach ($items as $ch) {
-                                $chId = $ch['slug'] ?? $ch['id'] ?? null;
-                                if ($chId) $info['chapters'][] = ['id' => $chId, 'title' => $ch['title'] ?? $ch['name'] ?? $chId];
-                            }
-                        }
-                    }
-                }
-                if (!empty($info['chapters'])) break;
-            }
-
-            if (preg_match('/<script[^>]*id="mjv2-manga-data"[^>]*type="application\/json"[^>]*>(.*?)<\/script>/s', $html, $matches)) {
-                $mangaJson = json_decode(trim($matches[1]), true);
-                if ($mangaJson) {
-                    $info['title'] = $mangaJson['title'] ?? $info['title'];
-                    $info['description'] = $mangaJson['synopsis'] ?? '';
-                    $info['cover'] = $mangaJson['thumbnail'] ?? null;
-                    $info['genre'] = is_array($mangaJson['genres'] ?? null) ? implode(', ', $mangaJson['genres']) : ($mangaJson['genres'] ?? '');
-                }
-            }
-
-            libxml_use_internal_errors(true);
-            $dom = new DOMDocument();
-            @$dom->loadHTML($html);
-            $xpath = new DOMXPath($dom);
-            if ($info['title'] == $slug) {
-                $titleNode = $xpath->query("//h1[contains(@class, 'mjv2-detail-title')] | //div[contains(@class, 'post-title')]/h1")->item(0);
-                if ($titleNode) $info['title'] = trim($titleNode->nodeValue);
-            }
-            if (empty($info['description'])) {
-                $descNode = $xpath->query("//div[contains(@class, 'mjv2-synopsis-content')] | //div[contains(@class, 'mjv2-description')] | //div[contains(@class, 'description-summary')] | //div[contains(@class, 'manga-excerpt')]")->item(0);
-                if ($descNode) $info['description'] = trim($descNode->nodeValue);
-            }
+            $comicasoService = app(\App\Services\ComicasoService::class);
+            $details = $comicasoService->getMangaDetails("comicazen__" . $slug);
             
-            if (empty($info['cover'])) {
-                $imgNode = $xpath->query("//div[contains(@class, 'mjv2-detail-cover')]//img | //div[contains(@class, 'summary_image')]//img | //div[contains(@class, 'mjv2-detail-thumbnail')]//img")->item(0);
-                if ($imgNode) {
-                    $cover = $imgNode->getAttribute('src') ?: ($imgNode->getAttribute('data-src') ?: ($imgNode->getAttribute('data-lazy-src') ?: null));
-                    if ($cover && !str_starts_with($cover, 'http')) {
-                        $cover = $this->baseUrl . (str_starts_with($cover, '/') ? '' : '/') . $cover;
-                    }
-                    $info['cover'] = $cover;
-                }
+            if ($details) {
+                return [
+                    'id' => $details['id'],
+                    'title' => $details['title'],
+                    'slug' => $details['slug'],
+                    'description' => $details['description'],
+                    'cover' => $details['cover'],
+                    'genre' => $details['genre'],
+                    'chapters' => array_map(fn($ch) => [
+                        'id' => $ch['id'],
+                        'title' => $ch['title']
+                    ], $details['chapters'] ?? [])
+                ];
             }
-
-            if (empty($info['genre'])) {
-                $genreNodes = $xpath->query("//span[contains(@class, 'mjv2-genre-chip')] | //div[contains(@class, 'genres-content')]//a | //div[contains(@class, 'mjv2-genre')]//a");
-                $genres = [];
-                foreach ($genreNodes as $gn) $genres[] = trim($gn->nodeValue);
-                if (!empty($genres)) $info['genre'] = implode(', ', $genres);
-            }
-
-            if (empty($info['chapters'])) {
-                $selectors = ["//a[contains(@class, 'mjv2-chapter-item')]", "//a[contains(@class, 'mjv2-chapter-link')]", "//li[contains(@class, 'wp-manga-chapter')]/a", "//div[contains(@class, 'listing-chapters_wrap')]//a", "//ul[contains(@class, 'main')]//a[contains(@href, '/chapter-')]", "//div[contains(@class, 'chapter-link')]//a"];
-                foreach ($selectors as $selector) {
-                    $chapterNodes = $xpath->query($selector);
-                    if ($chapterNodes->length > 0) {
-                        foreach ($chapterNodes as $cn) {
-                            $href = $cn->getAttribute('href');
-                            $chapterSlug = basename(rtrim(parse_url($href, PHP_URL_PATH), '/'));
-                            $chapterTitleNode = $xpath->query(".//span[contains(@class, 'mjv2-chapter-title')] | .//span[contains(@class, 'mjv2-chapter-name')] | .//p | .//span", $cn)->item(0);
-                            $chapterTitle = trim($chapterTitleNode->nodeValue ?? $cn->nodeValue);
-                            $exists = false;
-                            foreach($info['chapters'] as $existing) { if($existing['id'] === $chapterSlug) { $exists = true; break; } }
-                            if (!$exists && $chapterSlug && !in_array($chapterSlug, [$slug, 'manga', 'komik'])) $info['chapters'][] = ['id' => $chapterSlug, 'title' => $chapterTitle ?: $chapterSlug];
-                        }
-                        if (count($info['chapters']) > 0) break;
-                    }
-                }
-            }
-
-            if (empty($info['chapters'])) {
-                $mangaId = null;
-                if (preg_match('/post-(\d+)/', $html, $m)) $mangaId = $m[1];
-                elseif (preg_match('/"manga_id":"(\d+)"/', $html, $m)) $mangaId = $m[1];
-                if ($mangaId) {
-                    $ajaxRes = Http::asForm()
-                        ->withHeaders($this->getHeaders("{$this->baseUrl}{$activePath}/{$slug}/"))
-                        ->withOptions(['verify' => false])
-                        ->post("{$this->baseUrl}/wp-admin/admin-ajax.php", [
-                            'action' => 'manga_get_chapters',
-                            'manga' => $mangaId
-                        ]);
-                    if ($ajaxRes->successful()) {
-                        $ajaxHtml = $ajaxRes->body();
-                        libxml_use_internal_errors(true);
-                        $ajaxDom = new DOMDocument(); @$ajaxDom->loadHTML($ajaxHtml);
-                        $ajaxXpath = new DOMXPath($ajaxDom);
-                        $ajaxNodes = $ajaxXpath->query("//li[contains(@class, 'wp-manga-chapter')]/a | //a[contains(@class, 'mjv2-chapter-item')]");
-                        foreach ($ajaxNodes as $an) {
-                            $href = $an->getAttribute('href');
-                            $chapterSlug = basename(rtrim(parse_url($href, PHP_URL_PATH), '/'));
-                            $info['chapters'][] = ['id' => $chapterSlug, 'title' => trim($an->nodeValue)];
-                        }
-                    }
-                }
-            }
-            return $info;
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Comicazen Detail Error: " . $e->getMessage());
-            return null;
+            \Illuminate\Support\Facades\Log::error("Comicazen Details Delegation Error: " . $e->getMessage());
         }
+        return null;
     }
 
     public function getChapterImages($slug, $chapterId)
     {
-        $baseUrls = [$this->baseUrl, 'https://v3.comicaso.pro', 'https://comicaso.pro', 'https://comicaso.com'];
-        $paths = ['/komik', '/manga', '/ch'];
-        $html = null;
-
-        foreach ($baseUrls as $base) {
-            foreach ($paths as $path) {
-                $mangaUrl = "{$base}{$path}/{$slug}/";
-                $urls = ["{$base}{$path}/{$slug}/{$chapterId}/?style=list", "{$base}{$path}/{$slug}/{$chapterId}/", "{$base}/v2{$path}/{$slug}/{$chapterId}/"];
-                foreach ($urls as $url) {
-                    try {
-                        $cookies = \Illuminate\Support\Facades\Cache::get("comicazen_cookies_{$slug}") ?: [];
-                        $referer = (str_contains($url, '?') || str_contains($url, 'v2')) ? $base . '/' : $mangaUrl;
-                        $response = Http::withHeaders($this->getHeaders($referer))->withCookies($cookies, parse_url($base, PHP_URL_HOST))->withOptions(['verify' => false, 'follow_redirects' => true])->timeout(30)->get($url);
-                        if ($response->successful()) {
-                            $html = $response->body();
-                            if (strlen($html) > 5000 && !str_contains($html, 'Just a moment...')) break 3;
-                        }
-                    } catch (\Exception $e) {}
-                    usleep(100000);
-                }
-            }
+        \Illuminate\Support\Facades\Log::info("ComicazenService: Delegating getChapterImages to ComicasoService for $slug / $chapterId");
+        try {
+            $comicasoService = app(\App\Services\ComicasoService::class);
+            return $comicasoService->getChapterImages("comicazen__" . $slug, $chapterId);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Comicazen Chapter Delegation Error: " . $e->getMessage());
+            return [];
         }
-
-        if (!$html) return [];
-        $scriptIds = ['mjv2-reader-data', 'reader-data', 'mjv2-manga-data', 'manga-data', 'obj_reader', 'wp-manga-reader-data', 'img_data'];
-        foreach ($scriptIds as $sid) {
-            if (preg_match('/<script[^>]*id="'.$sid.'"[^>]*>(.*?)<\/script>/s', $html, $matches)) {
-                $content = trim($matches[1]);
-                $readerJson = json_decode($content, true);
-                if (!$readerJson && preg_match('/(?:var|let|const|obj_reader|img_data)\s*=\s*({.*?});/s', $content, $jsMatches)) $readerJson = json_decode($jsMatches[1], true);
-                if (isset($readerJson['images']) && is_array($readerJson['images'])) return array_map('trim', $readerJson['images']);
-                if (isset($readerJson['sources'][0]['images']) && is_array($readerJson['sources'][0]['images'])) return array_map('trim', $readerJson['sources'][0]['images']);
-            }
-        }
-
-        libxml_use_internal_errors(true);
-        $dom = new DOMDocument(); @$dom->loadHTML($html);
-        $xpath = new DOMXPath($dom);
-        $images = [];
-        $imgNodes = $xpath->query("//div[contains(@class, 'mjv2-reader-content')]//img | //div[contains(@class, 'reading-content')]//img | //div[contains(@class, 'page-break')]//img | //div[@id='chapter_view']//img | //div[@id='readerarea']//img | //div[contains(@class, 'read-content')]//img | //div[contains(@class, 'mjv2-read-content')]//img | //div[contains(@class, 'item-reading')]//img");
-        foreach ($imgNodes as $in) {
-            $src = $in->getAttribute('data-src') ?: ($in->getAttribute('data-lazy-src') ?: ($in->getAttribute('src') ?: ($in->getAttribute('data-cfsrc') ?: ($in->getAttribute('data-original') ?: ($in->getAttribute('data-full-url') ?: $in->getAttribute('data-src-img'))))));
-            if ($src && !str_contains($src, 'data:image') && !str_contains($src, 'loading.gif') && !str_contains($src, 'ads')) {
-                $src = trim($src);
-                if (str_starts_with($src, '//')) {
-                    $src = 'https:' . $src;
-                } elseif (!str_starts_with($src, 'http')) {
-                    $src = $this->baseUrl . (str_starts_with($src, '/') ? '' : '/') . $src;
-                }
-                $images[] = $src;
-            }
-        }
-        return $images;
     }
 }

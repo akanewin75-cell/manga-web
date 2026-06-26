@@ -112,7 +112,8 @@ class ComicasoService
                 ->timeout(30)
                 ->get("{$this->baseUrl}/api/manga.php", [
                     'source' => $source,
-                    'slug' => $slug
+                    'slug' => $slug,
+                    'platform' => 'web'
                 ]);
 
             if (!$response->successful() && !$explicitSource) {
@@ -122,7 +123,8 @@ class ComicasoService
                     ->timeout(30)
                     ->get("{$this->baseUrl}/api/manga.php", [
                         'source' => 'medusa',
-                        'slug' => $slug
+                        'slug' => $slug,
+                        'platform' => 'web'
                     ]);
             }
 
@@ -134,7 +136,8 @@ class ComicasoService
                         ->timeout(30)
                         ->get("{$this->baseUrl}/api/manga.php", [
                             'source' => $fSource,
-                            'slug' => $slug
+                            'slug' => $slug,
+                            'platform' => 'web'
                         ]);
                     if ($response->successful()) break;
                 }
@@ -174,6 +177,7 @@ class ComicasoService
                     return [
                         'id' => $ch['slug'],
                         'title' => $ch['title'],
+                        'chapter_token' => $ch['chapter_token'] ?? null,
                         'chapter_num' => $this->extractChapterNum($ch['title'])
                     ];
                 }, $data['chapters'] ?? [])
@@ -195,41 +199,66 @@ class ComicasoService
                 $mangaSlug = $parts[1];
                 $explicitSource = true;
             }
-            
-            $response = Http::withHeaders($this->getHeaders())
-                ->withOptions(['verify' => false])
+
+            Log::info("Comicaso getChapterImages: Fetching token for source=$source, manga=$mangaSlug, chapter=$chapterSlug");
+
+            $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
+
+            // 1. Fetch details to get a fresh chapter token and initiate the session (PHPSESSID)
+            $detailsResponse = Http::withHeaders($this->getHeaders())
+                ->withOptions([
+                    'verify' => false,
+                    'cookies' => $cookieJar
+                ])
                 ->timeout(30)
-                ->get("{$this->baseUrl}/api/chapter.php", [
+                ->get("{$this->baseUrl}/api/manga.php", [
                     'source' => $source,
-                    'manga' => $mangaSlug,
-                    'chapter' => $chapterSlug
+                    'slug' => $mangaSlug,
+                    'platform' => 'web'
                 ]);
 
-            if (!$response->successful() && !$explicitSource) {
-                // Try 'medusa'
-                $response = Http::withHeaders($this->getHeaders())
-                    ->withOptions(['verify' => false])
-                    ->timeout(30)
-                    ->get("{$this->baseUrl}/api/chapter.php", [
-                        'source' => 'medusa',
-                        'manga' => $mangaSlug,
-                        'chapter' => $chapterSlug
-                    ]);
+            if (!$detailsResponse->successful()) {
+                Log::error("Comicaso getChapterImages: Failed to fetch details for token. Status: " . $detailsResponse->status());
+                return [];
             }
 
-            if (!$response->successful() && $explicitSource) {
-                $fallbackSources = array_filter(['comicazen', 'medusa'], fn($s) => $s !== $source);
-                foreach ($fallbackSources as $fSource) {
-                    $response = Http::withHeaders($this->getHeaders())
-                        ->withOptions(['verify' => false])
-                        ->timeout(30)
-                        ->get("{$this->baseUrl}/api/chapter.php", [
-                            'source' => $fSource,
-                            'manga' => $mangaSlug,
-                            'chapter' => $chapterSlug
-                        ]);
-                    if ($response->successful()) break;
+            $detailsJson = $detailsResponse->json();
+            $chapters = $detailsJson['data']['chapters'] ?? [];
+            $chapterToken = null;
+
+            foreach ($chapters as $ch) {
+                if (($ch['slug'] ?? '') === $chapterSlug) {
+                    $chapterToken = $ch['chapter_token'] ?? null;
+                    break;
                 }
+            }
+
+            if (!$chapterToken) {
+                Log::warning("Comicaso getChapterImages: Token not found in details for chapter: $chapterSlug");
+            }
+
+            // 2. Fetch the actual chapter images using the same session cookies and the token
+            $params = [
+                'source' => $source,
+                'manga' => $mangaSlug,
+                'chapter' => $chapterSlug,
+                'platform' => 'web'
+            ];
+            if ($chapterToken) {
+                $params['token'] = $chapterToken;
+            }
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->withOptions([
+                    'verify' => false,
+                    'cookies' => $cookieJar
+                ])
+                ->timeout(30)
+                ->get("{$this->baseUrl}/api/chapter.php", $params);
+
+            if (!$response->successful() && !$explicitSource) {
+                // Try 'medusa' source if default failed and not explicit
+                return $this->getChapterImages("medusa__" . $mangaSlug, $chapterSlug);
             }
 
             if (!$response->successful()) {
@@ -239,7 +268,7 @@ class ComicasoService
 
             $json = $response->json();
             if ($json && isset($json['locked']) && $json['locked'] == 1) {
-                Log::warning("Comicaso Chapter Locked for $mangaSlug / $chapterSlug: " . ($json['message'] ?? 'Login required') . ". Response: " . json_encode($json));
+                Log::warning("Comicaso Chapter Locked for $mangaSlug / $chapterSlug: " . ($json['message'] ?? 'Login required'));
                 return [];
             }
 
