@@ -48,23 +48,49 @@
         autoScroll: false,
         scrollSpeed: parseInt(localStorage.getItem('scrollSpeed') || '2'),
         scrollInterval: null,
+        scrollAccumulator: 0,
         startAutoScroll() {
             if (this.scrollInterval) cancelAnimationFrame(this.scrollInterval);
             
-            const scroll = () => {
+            // Disable scroll-smooth to prevent browser scroll animations from fighting with frame-by-frame updates
+            document.documentElement.classList.remove('scroll-smooth');
+            
+            let lastTimestamp = null;
+            let frameCount = 0;
+            let maxScroll = 0;
+            this.scrollAccumulator = 0;
+            
+            const scroll = (timestamp) => {
                 if (!this.autoScroll) return;
                 
-                const speedVal = parseFloat(this.scrollSpeed) || 2;
-                // Exponential scaling for pixel step per frame:
-                // Speed 1: 1px (~60 px/s at 60fps)
-                // Speed 5: ~7px (~420 px/s at 60fps)
-                // Speed 10: ~23px (~1380 px/s at 60fps)
-                const step = Math.pow(speedVal, 1.8) * 0.35 + 0.65;
+                if (!lastTimestamp) lastTimestamp = timestamp;
+                const elapsed = timestamp - lastTimestamp;
+                lastTimestamp = timestamp;
                 
-                window.scrollBy(0, Math.round(step));
+                // Normalize scroll speed based on 60fps (16.67ms per frame)
+                // This ensures consistent speed on 90Hz/120Hz/144Hz displays
+                const timeScale = elapsed ? (elapsed / 16.67) : 1;
+                const cappedScale = Math.min(timeScale, 4); // Limit scaling to prevent massive jumps on lag spikes
+                
+                const speedVal = parseFloat(this.scrollSpeed) || 2;
+                const baseStep = Math.pow(speedVal, 1.8) * 0.35 + 0.65;
+                const step = baseStep * cappedScale;
+                
+                this.scrollAccumulator += step;
+                const toScroll = Math.floor(this.scrollAccumulator);
+                
+                if (toScroll >= 1) {
+                    window.scrollBy(0, toScroll);
+                    this.scrollAccumulator -= toScroll;
+                }
+                
+                // Throttle queries to scrollHeight to prevent layout thrashing (forced synchronous layout)
+                frameCount++;
+                if (frameCount % 30 === 0 || maxScroll === 0) {
+                    maxScroll = (document.documentElement.scrollHeight || document.body.scrollHeight) - window.innerHeight;
+                }
                 
                 const actualY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
-                const maxScroll = (document.documentElement.scrollHeight || document.body.scrollHeight) - window.innerHeight;
                 
                 // Only stop at bottom if page is actually scrollable and we reached the bottom limit
                 if (maxScroll > 300 && actualY >= maxScroll - 15) {
@@ -83,6 +109,8 @@
                 this.scrollInterval = null;
             }
             this.autoScroll = false;
+            // Restore scroll-smooth for normal site navigation and scroll actions
+            document.documentElement.classList.add('scroll-smooth');
         },
         toggleAutoScroll() {
             this.autoScroll = !this.autoScroll;
@@ -523,7 +551,7 @@
                         <span>Speed</span>
                         <span class="text-lunar-accent" x-text="scrollSpeed + 'x'"></span>
                     </div>
-                    <input type="range" min="1" max="10" x-model.number="scrollSpeed" @input="localStorage.setItem('scrollSpeed', scrollSpeed); if(autoScroll) startAutoScroll();"
+                    <input type="range" min="1" max="20" x-model.number="scrollSpeed" @input="localStorage.setItem('scrollSpeed', scrollSpeed); if(autoScroll) startAutoScroll();"
                            class="w-full accent-lunar-accent bg-white/10 rounded-lg appearance-none h-1.5 cursor-pointer">
                 </div>
             </div>
